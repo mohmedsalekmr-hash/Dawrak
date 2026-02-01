@@ -4,19 +4,19 @@ import { supabase } from '../supabase'
 import { useLocalStorage } from '@vueuse/core'
 import { useSound } from '@vueuse/sound'
 
-/** State Management - Preserving backend logic */
+/** State Management - Keeping production backend logic intact */
 const currentNumber = ref(0)
 const lastIssued = ref(0)
 const queueId = ref<number | null>(null)
 const myTicket = useLocalStorage<number | null>('dawrak-ticket', null)
 const isLoading = ref(false)
-const showCelebration = ref(false)
+const showCelebrationList = ref<number[]>([])
 
-// Audio cue
+// Audio notification
 const notificationSound = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
 const { play } = useSound(notificationSound)
 
-/** Core Logic */
+/** Core Logic Initialization */
 onMounted(async () => {
   let { data } = await supabase.from('queues').select('*').limit(1).maybeSingle()
   
@@ -31,7 +31,6 @@ onMounted(async () => {
     lastIssued.value = data.last_issued_number ?? 0
   }
 
-  // Realtime updates
   supabase
     .channel('queues')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'queues' }, (payload) => {
@@ -47,7 +46,7 @@ onMounted(async () => {
     .subscribe()
 })
 
-/** Actions */
+/** User Actions */
 async function getTicket() {
   if (!queueId.value) return
   isLoading.value = true
@@ -56,21 +55,28 @@ async function getTicket() {
   
   if (data) {
     myTicket.value = data
-    showCelebration.value = true
-    setTimeout(() => showCelebration.value = false, 3000)
+    triggerCelebration()
   } else {
     console.error('Error getting ticket:', error)
   }
   isLoading.value = false
 }
 
+function triggerCelebration() {
+  const id = Date.now()
+  showCelebrationList.value.push(id)
+  setTimeout(() => {
+    showCelebrationList.value = showCelebrationList.value.filter(item => item !== id)
+  }, 4000)
+}
+
 function cancelTicket() {
-  if (confirm('هل أنت متأكد من إلغاء تذكرتك؟')) {
+  if (confirm('هل أنت متأكد من إلغاء تذكرتك؟ سيفقد ترتيبك الحالي.')) {
     myTicket.value = null
   }
 }
 
-/** Computed */
+/** Computed Metrics */
 const peopleAhead = computed(() => {
   if (!myTicket.value) return 0
   return Math.max(0, myTicket.value - currentNumber.value - 1)
@@ -79,75 +85,98 @@ const peopleAhead = computed(() => {
 const isMyTurn = computed(() => myTicket.value !== null && myTicket.value <= currentNumber.value)
 const isFinished = computed(() => myTicket.value !== null && myTicket.value < currentNumber.value)
 
-// Progress calculation for the ring
+// Circle progress: starts full and decreases as people are served
 const progressOffset = computed(() => {
   if (!myTicket.value || isMyTurn.value) return 0
-  const ahead = peopleAhead.value
-  return (ahead / 10) * 100 // Visual representation
+  // Relative progress logic based on a small window (max 10 people)
+  return Math.max(0, (peopleAhead.value / 10) * 289)
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-white flex flex-col items-center justify-between px-8 py-14 font-['Inter',sans-serif] selection:bg-emerald-100 overflow-hidden relative" dir="rtl">
     
-    <!-- Top Nav / Label -->
-    <header class="w-full flex justify-between items-center animate-in fade-in duration-700">
-      <div class="flex items-center gap-1.5 opacity-60">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-slate-900"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"></path></svg>
-        <span class="text-[0.7rem] font-bold text-slate-900 tracking-tight">نافذة الانتظار</span>
+    <!-- 1. Poetic Background Blobs (SVG Effects from Reference Images) -->
+    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      <!-- The "Fluid" background shapes -->
+      <svg class="absolute -top-1/4 -right-1/4 w-[150%] h-[150%] opacity-20 filter blur-[80px] animate-morph" viewBox="0 0 1000 1000">
+        <path d="M784,395Q742,490,695,571Q648,652,551,691Q454,730,344,704Q234,678,168,589Q102,500,147,404Q192,308,284,244Q376,180,488,187Q600,194,713,247Q826,300,784,395Z" fill="url(#grad1)"/>
+        <defs>
+          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.2" />
+            <stop offset="100%" style="stop-color:#ecfdf5;stop-opacity:0" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <!-- Smaller accent blob -->
+      <div class="absolute top-[40%] left-[-10%] w-[60%] aspect-square bg-emerald-50 rounded-full blur-[100px] opacity-40"></div>
+    </div>
+
+    <!-- 2. Minimalist Header -->
+    <header class="w-full flex flex-col items-center relative z-10 animate-in fade-in slide-in-from-top duration-700">
+      <div class="flex items-center gap-1.5 opacity-60 mb-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-slate-900"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+        <span class="text-[0.65rem] font-bold text-slate-900 uppercase tracking-widest">تتبع الدور المباشر</span>
       </div>
-      <div class="text-[0.7rem] font-black text-slate-400 tracking-[0.2em] uppercase">Dawrak</div>
     </header>
 
-    <!-- Center Stage: The Interactive Ring (Reference Image Implementation) -->
-    <main class="flex-1 flex flex-col items-center justify-center w-full max-w-lg">
-      <div class="relative w-full aspect-square max-w-[340px] flex items-center justify-center translate-y-[-2vh]">
+    <!-- 3. Central Interactive Ring (Reference Images 1, 2, 3) -->
+    <main class="flex-1 flex flex-col items-center justify-center w-full max-w-lg mb-[10vh]">
+      <div class="relative w-full aspect-square max-w-[360px] flex items-center justify-center">
         
-        <!-- Background Blur Blobs -->
-        <div class="absolute inset-0 bg-emerald-500/5 blur-[100px] rounded-full"></div>
-        
-        <!-- The Main Circular Visual -->
-        <div class="relative w-full h-full rounded-full bg-white shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] flex flex-col items-center justify-center p-10 text-center border border-slate-50 overflow-hidden">
+        <!-- The SVG Atmosphere Blobs behind the circle -->
+        <div class="absolute inset-0 z-0 flex items-center justify-center">
+           <div class="w-[110%] h-[110%] bg-emerald-50 rounded-full blur-[60px] opacity-30 animate-pulse"></div>
+        </div>
+
+        <!-- The Circular Container -->
+        <div 
+          class="relative z-10 w-full h-full rounded-full bg-white shadow-[0_45px_100px_-25px_rgba(0,0,0,0.06)] flex flex-col items-center justify-center p-10 text-center border border-slate-50 transition-all duration-1000"
+          :class="isMyTurn ? 'border-emerald-500 shadow-[0_0_80px_rgba(16,185,129,0.2)]' : ''"
+        >
           
-          <!-- Outer Progress Ring (SVG) -->
+          <!-- Circular Progress SVG -->
           <svg class="absolute inset-0 w-full h-full -rotate-90 transform p-4" viewBox="0 0 100 100">
-            <!-- Full Ring -->
             <circle cx="50" cy="50" r="46" fill="none" class="stroke-slate-50" stroke-width="4"></circle>
-            <!-- Dynamic Progress -->
             <circle 
               cx="50" cy="50" r="46" fill="none" 
-              class="transition-all duration-1000 ease-out"
+              class="transition-all duration-1000 ease-in-out"
               :class="isMyTurn ? 'stroke-emerald-500' : 'stroke-emerald-600'"
               stroke-width="8"
               stroke-linecap="round"
               :stroke-dasharray="289"
-              :stroke-dashoffset="isMyTurn ? 0 : 289 * (progressOffset / 100)"
+              :stroke-dashoffset="isMyTurn ? 0 : progressOffset"
             ></circle>
           </svg>
 
-          <!-- Interior Content (Reference Text Patterns) -->
+          <!-- Content Switching -->
           <Transition name="fade-scale" mode="out-in">
-            <!-- State: Idle (Serving) -->
-            <div v-if="myTicket === null" key="idle" class="flex flex-col items-center">
-              <p class="text-slate-400 text-sm font-medium mb-4">الرقم الحالي</p>
-              <div class="text-9xl font-black text-slate-900 leading-none tabular-nums drop-shadow-sm">{{ currentNumber }}</div>
-              <p class="text-emerald-600 text-[0.65rem] font-black uppercase tracking-[0.3em] mt-6">— يرجى الانتظار</p>
+            <!-- Idle: Current Serving State -->
+            <div v-if="myTicket === null" key="current" class="flex flex-col items-center">
+              <p class="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">الرقم الحالي</p>
+              <div class="text-[8.5rem] font-black text-slate-900 leading-none tabular-nums drop-shadow-sm">{{ currentNumber }}</div>
+              <p class="text-emerald-700 text-[0.65rem] font-black uppercase tracking-[0.4em] mt-8">— يرجى الانتظار</p>
             </div>
 
-            <!-- State: Your Turn (Image 3) -->
-            <div v-else-if="isMyTurn" key="turn" class="flex flex-col items-center animate-gentle-pulse">
-              <p class="text-slate-400 text-[0.7rem] font-medium mb-3">رقم تذكرتكم #{{ myTicket }}</p>
-              <h2 class="text-4xl md:text-5xl font-black text-slate-900 leading-[1.15] mb-6">لقد حان<br>دوركم الآن!</h2>
-              <p class="text-emerald-600 text-[0.7rem] font-black uppercase tracking-widest">— تفضلوا بالدخول</p>
+            <!-- Turn Arrival: The Success Message (Image 3) -->
+            <div v-else-if="isMyTurn" key="turn" class="flex flex-col items-center px-6">
+              <div class="absolute inset-0 rounded-full bg-emerald-400/5 animate-ping-slow"></div>
+              <p class="text-slate-400 text-[0.7rem] font-medium mb-4">رقم تذكرتكم هو <span class="text-slate-900 font-black">#{{ myTicket }}</span></p>
+              <h2 class="text-4xl md:text-5xl font-black text-slate-900 leading-[1.1] mb-6">لقد حان<br>دوركم الآن!</h2>
+              <p class="text-emerald-600 text-[0.7rem] font-black uppercase tracking-[0.2em]">تفضلوا.. مرحب بكـم</p>
             </div>
 
-            <!-- State: Waiting (Image 1 & 2) -->
-            <div v-else key="waiting" class="flex flex-col items-center text-center">
-              <p class="text-slate-400 text-[0.7rem] font-medium mb-4">رقم تذكرتكم هو <span class="text-slate-900 font-bold">#{{ myTicket }}</span></p>
-              <h2 class="text-4xl md:text-5xl font-black text-slate-900 leading-tight mb-4">ترتيبكم {{ peopleAhead + 1 }}<br>في القائمة</h2>
-              <div class="flex flex-col gap-1 mt-2">
-                <p class="text-slate-400 text-[0.7rem] font-medium tracking-tight">وقت الانتظار التقريبي</p>
-                <p class="text-slate-900 text-lg font-black tracking-tight">≈ {{ peopleAhead * 5 }} دقيقة</p>
+            <!-- Active Queue: Waiting State (Image 1 & 2) -->
+            <div v-else key="waiting" class="flex flex-col items-center">
+              <p class="text-slate-400 text-[0.7rem] font-medium mb-3">رقم تذكرتكم هو <span class="text-slate-900 font-black">#{{ myTicket }}</span></p>
+              <h2 class="text-4xl md:text-5xl font-black text-slate-900 leading-tight mb-4 select-none">ترتيبكم {{ peopleAhead + 1 }}<br>في القائمة</h2>
+              
+              <div class="mt-2 flex flex-col items-center">
+                <span class="text-slate-400 text-[0.65rem] font-medium uppercase tracking-tight mb-1">وقت الانتظار التقريبي</span>
+                <div class="flex items-center gap-1.5">
+                   <span class="text-2xl font-black text-slate-900 tracking-tighter">≈ {{ peopleAhead * 5 }}</span>
+                   <span class="text-base font-bold text-slate-400 mb-0.5">دقائق</span>
+                </div>
               </div>
             </div>
           </Transition>
@@ -155,116 +184,116 @@ const progressOffset = computed(() => {
       </div>
     </main>
 
-    <!-- Bottom Actions (Reference Buttons Style) -->
-    <div class="w-full max-w-sm flex flex-col items-center gap-4 animate-in slide-in-from-bottom duration-1000">
+    <!-- 4. Bottom Performance Actions (Image 1 Style Buttons) -->
+    <div class="w-full max-w-sm flex flex-col items-center gap-4 relative z-10 animate-in slide-in-from-bottom duration-1000">
       
-      <!-- Notification-style Message (Image 1 Popup Feel) -->
-      <Transition name="slide-up">
-        <div v-if="isMyTurn" class="w-full bg-emerald-50 border border-emerald-100 p-5 rounded-3xl flex items-center gap-4 mb-2 shadow-sm">
-          <div class="bg-emerald-600 p-2 rounded-xl text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          </div>
-          <div class="flex-1">
-            <p class="text-[0.65rem] font-black text-emerald-800/40 uppercase tracking-widest leading-none mb-1">تـنبيه الآن</p>
-            <p class="text-sm font-bold text-emerald-900">لقد حان دوركم في نافذة الخدمة!</p>
-          </div>
-        </div>
-      </Transition>
-
-      <Transition name="action-swap" mode="out-in">
-        <!-- Action: Get Ticket -->
+      <Transition name="button-swap" mode="out-in">
+        <!-- Action: Issue New Ticket -->
         <div v-if="myTicket === null" class="w-full">
-          <button 
+           <button 
             @click="getTicket" 
             :disabled="isLoading"
-            class="w-full py-6 rounded-[1.8rem] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl transition-all shadow-xl shadow-emerald-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+            class="w-full py-6 rounded-[1.8rem] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl transition-all shadow-[0_30px_60px_-15px_rgba(5,150,105,0.4)] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-4 relative overflow-hidden group"
           >
-            <span v-if="isLoading" class="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin"></span>
+            <span v-if="isLoading" class="w-7 h-7 border-4 border-white/20 border-t-white rounded-full animate-spin"></span>
             <span v-else>احصل على رقمك</span>
           </button>
         </div>
 
-        <!-- Action: Manage Ticket -->
-        <div v-else class="w-full flex flex-col gap-3">
-          <!-- Notification Mock-button (Image 1) -->
-          <button class="w-full py-4 rounded-[1.4rem] bg-emerald-600 text-white font-bold text-sm tracking-tight transition-all active:scale-[0.98] shadow-lg shadow-emerald-200 opacity-90">
-             تفعيل الإشعارات
-          </button>
-          
-          <button 
+        <!-- Action: Manage Existing Ticket -->
+        <div v-else class="w-full space-y-4">
+           <!-- The "Enable Notifications" Bar (Reference Image 1) -->
+           <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-[1.4rem] font-bold text-sm tracking-tight transition-all active:scale-[0.98] shadow-lg shadow-emerald-200">
+              تفعيل الإشعارات
+           </button>
+           
+           <button 
             @click="cancelTicket" 
-            class="w-full py-4 rounded-[1.4rem] bg-slate-100 hover:bg-slate-200 text-slate-400 font-bold text-sm tracking-tight transition-all active:scale-[0.98]"
+            class="w-full py-4 rounded-[1.4rem] bg-slate-50 hover:bg-slate-100 text-slate-400 font-bold text-sm tracking-tight border border-slate-100 transition-all active:scale-[0.98]"
           >
             {{ isFinished ? 'بدء حجز جديد' : 'إلغاء حجز الدور' }}
           </button>
         </div>
       </Transition>
 
-      <!-- Status Subtext -->
-      <div v-if="myTicket === null" class="text-[0.6rem] font-black text-slate-300 uppercase tracking-[0.4em] mt-2 group hover:text-slate-400 cursor-default transition-colors">
-        عدد المنتظرين في القائمة: {{ Math.max(0, lastIssued - currentNumber) }}
+      <!-- Status Sub-footer -->
+      <div v-if="myTicket === null" class="text-[0.6rem] font-black text-slate-300 uppercase tracking-[0.5em] mt-4 select-none">
+        عدد المنتظرين حالياً: {{ Math.max(0, lastIssued - currentNumber) }}
       </div>
     </div>
 
-    <!-- Celebration Asset Overlay -->
-    <Transition name="pop">
-      <div v-if="showCelebration" class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-        <div class="absolute inset-0 bg-white/40 backdrop-blur-sm"></div>
-        <div class="text-9xl animate-ticket-pop drop-shadow-2xl">🎫</div>
+    <!-- 5. Poetic Overlays (Image 2 Notification & Pop) -->
+    <TransitionGroup name="celebration-pop">
+      <div 
+        v-for="popId in showCelebrationList" 
+        :key="popId"
+        class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] pointer-events-none"
+      >
+        <div class="relative scale-popup flex flex-col items-center">
+           <div class="text-[14rem] drop-shadow-[0_20px_100px_rgba(16,185,129,0.4)]">🎫</div>
+           <p class="mt-[-2rem] bg-white text-emerald-900 border border-emerald-100 px-8 py-3 rounded-full font-black text-lg shadow-2xl animate-bounce">تم حجز دورك بنجاح!</p>
+        </div>
       </div>
-    </Transition>
+    </TransitionGroup>
 
   </div>
 </template>
 
 <style scoped>
-/* Reference Image Animations */
-@keyframes ticketPop {
-  0% { transform: scale(0.5) rotate(-15deg); opacity: 0; }
-  100% { transform: scale(1) rotate(0); opacity: 1; }
-}
-.animate-ticket-pop {
-  animation: ticketPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* High-End Poetic Animations */
+@keyframes morph {
+  0%, 100% { d: path("M784,395Q742,490,695,571Q648,652,551,691Q454,730,344,704Q234,678,168,589Q102,500,147,404Q192,308,284,244Q376,180,488,187Q600,194,713,247Q826,300,784,395Z"); }
+  50% { d: path("M795,417Q774,534,713,638Q652,742,525,739Q398,736,310,652Q222,568,230,446Q238,324,314,248Q390,172,500,170Q610,168,713,234Q816,300,795,417Z"); }
 }
 
-@keyframes gentlePulse {
-  0%, 100% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.02); filter: brightness(1.1); }
+.animate-morph {
+  animation: morph 20s infinite ease-in-out;
+}
+
+@keyframes pingSlow {
+  0% { transform: scale(1); opacity: 0.15; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+.animate-ping-slow {
+  animation: pingSlow 3s infinite cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 45px 100px -25px rgba(0,0,0,0.06); }
+  50% { box-shadow: 0 45px 100px -25px rgba(16, 185, 129, 0.15); }
 }
 .animate-gentle-pulse {
-  animation: gentlePulse 2s infinite ease-in-out;
+  animation: pulseGlow 3s infinite ease-in-out;
 }
 
-/* Vue Transitions */
+/* Transitions */
 .fade-scale-enter-active, .fade-scale-leave-active {
-  transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  transition: all 0.7s cubic-bezier(0.19, 1, 0.22, 1);
 }
-.fade-scale-enter-from { opacity: 0; transform: scale(0.95); }
-.fade-scale-leave-to { opacity: 0; transform: scale(1.05); }
+.fade-scale-enter-from { opacity: 0; transform: scale(0.9) translateY(10px); }
+.fade-scale-leave-to { opacity: 0; transform: scale(1.1) translateY(-10px); }
 
-.action-swap-enter-active, .action-swap-leave-active {
-  transition: all 0.5s ease-out;
+.button-swap-enter-active, .button-swap-leave-active {
+  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
-.action-swap-enter-from { opacity: 0; transform: translateY(10px); }
-.action-swap-leave-to { opacity: 0; transform: translateY(-10px); }
+.button-swap-enter-from { opacity: 0; transform: translateY(20px); }
+.button-swap-leave-to { opacity: 0; transform: translateY(-20px); }
 
-.slide-up-enter-active, .slide-up-leave-active {
-  transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+.celebration-pop-enter-active {
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.slide-up-enter-from { opacity: 0; transform: translateY(30px); }
-.slide-up-leave-to { opacity: 0; transform: translateY(-30px); }
-
-.pop-enter-active, .pop-leave-active {
-  transition: opacity 0.5s ease;
+.celebration-pop-leave-active {
+  transition: all 0.5s ease-in;
 }
-.pop-enter-from, .pop-leave-to { opacity: 0; }
+.celebration-pop-enter-from { opacity: 0; transform: translate(-50%, -40%) scale(0.5) rotate(-20deg); }
+.celebration-pop-leave-to { opacity: 0; transform: translate(-50%, -60%) scale(1.5); }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+/* Custom Scrollbar for hidden elements */
+::-webkit-scrollbar { display: none; }
 
-/* Responsive adjustments */
 @media (max-width: 480px) {
-  main { scale: 0.9; }
-  .text-9xl { font-size: 8rem; }
+  .text-\[8.5rem\], .text-9xl { font-size: 7.5rem; }
+  main { scale: 0.95; margin-top: -2vh; }
+  header { top: 4rem; }
 }
 </style>

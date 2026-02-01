@@ -12,7 +12,8 @@ const queueId = ref<number | null>(null)
 const myTicket = useLocalStorage<number | null>('dawrak-ticket', null)
 const isLoading = ref(false)
 const showCelebration = ref(false)
-const showMessage = ref<{ type: 'success' | 'info' | 'error', text: string } | null>(null)
+const showCancelModal = ref(false)
+const showToast = ref<{ type: 'success' | 'info' | 'error', text: string } | null>(null)
 
 const notificationSound = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
 const { play } = useSound(notificationSound)
@@ -61,19 +62,22 @@ async function getTicket() {
   if (data) {
     myTicket.value = data
     triggerCelebration()
-    displayToast('success', 'تم حجز دورك بنجاح! شكراً لانتظارك.')
+    displayToast('success', 'تم استلام تذكرتك بنجاح')
   } else {
     console.error('Error getting ticket:', error)
-    displayToast('error', 'حدث خطأ أثناء حجز التذكرة. الرجاء المحاولة مرة أخرى.')
+    displayToast('error', 'نعتذر، حدث خطأ ما')
   }
   isLoading.value = false
 }
 
-function cancelOrder() {
-  if (confirm('هل أنت متأكد من إلغاء التذكرة؟')) {
-    myTicket.value = null
-    displayToast('info', 'تم إلغاء حجزك بنجاح. نتمنى رؤيتك قريباً.')
-  }
+function requestCancel() {
+  showCancelModal.value = true
+}
+
+function confirmCancel() {
+  myTicket.value = null
+  showCancelModal.value = false
+  displayToast('info', 'تم إلغاء الحجز بنجاح')
 }
 
 function triggerCelebration() {
@@ -82,8 +86,8 @@ function triggerCelebration() {
 }
 
 function displayToast(type: 'success' | 'info' | 'error', text: string) {
-  showMessage.value = { type, text }
-  setTimeout(() => showMessage.value = null, 4000)
+  showToast.value = { type, text }
+  setTimeout(() => showToast.value = null, 4000)
 }
 
 /** Computed */
@@ -97,107 +101,140 @@ const isPast = computed(() => myTicket.value !== null && myTicket.value < curren
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 flex flex-col items-center p-6 relative overflow-hidden" dir="rtl">
+  <div class="min-h-screen bg-slate-50 flex flex-col items-center justify-start p-6 safe-area-inset" dir="rtl">
     
-    <!-- Nice Flashy Celebration Overlay -->
+    <!-- Toast Notification -->
+    <Transition name="toast">
+      <div v-if="showToast" 
+           class="fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-center min-w-[300px] border border-white/20 backdrop-blur-xl"
+           :class="{
+             'bg-emerald-600 text-white': showToast.type === 'success',
+             'bg-slate-800 text-white': showToast.type === 'info',
+             'bg-rose-600 text-white': showToast.type === 'error'
+           }">
+        <span class="font-bold text-sm text-center">{{ showToast.text }}</span>
+      </div>
+    </Transition>
+
+    <!-- Celebration Overlay -->
     <Transition name="fade">
       <div v-if="showCelebration" class="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-        <div class="absolute inset-0 bg-emerald-500/10 backdrop-blur-[2px]"></div>
-        <div class="relative animate-bounce-scale text-6xl">✨ 🎫 ✨</div>
+        <div class="absolute inset-0 bg-emerald-500/5 backdrop-blur-[1px]"></div>
+        <div class="relative scale-animate text-8xl">🎫✨</div>
       </div>
     </Transition>
 
-    <!-- Toast Message -->
-    <Transition name="slide-up">
-      <div v-if="showMessage" 
-           class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md border border-white/20"
-           :class="{
-             'bg-emerald-600 text-white': showMessage.type === 'success',
-             'bg-blue-600 text-white': showMessage.type === 'info',
-             'bg-red-600 text-white': showMessage.type === 'error'
-           }">
-        <span class="font-bold text-sm">{{ showMessage.text }}</span>
+    <!-- Custom Cancel Modal -->
+    <Transition name="modal">
+      <div v-if="showCancelModal" class="fixed inset-0 z-[110] p-6 flex items-center justify-center">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showCancelModal = false"></div>
+        <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl text-center border border-slate-100 animate-in fade-in zoom-in duration-300">
+          <div class="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-rose-600"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </div>
+          <h2 class="text-2xl font-black text-slate-900 mb-3">إلغاء الحجز؟</h2>
+          <p class="text-slate-500 mb-8 leading-relaxed">هل أنت متأكد من رغبتك في إلغاء تذكرتك الحالية؟ سيفقد رقمك ولن تتمكن من استعادته.</p>
+          <div class="grid grid-cols-2 gap-4">
+            <button @click="showCancelModal = false" class="py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold transition-all active:scale-95">تراجع</button>
+            <button @click="confirmCancel" class="py-4 rounded-2xl bg-rose-600 text-white font-bold transition-all shadow-lg shadow-rose-200 active:scale-95">نعم، إلغاء</button>
+          </div>
+        </div>
       </div>
     </Transition>
 
-    <!-- Logo Section -->
-    <div class="mt-8 mb-12 flex flex-col items-center animate-fade-in">
-      <img :src="logoUrl" alt="Dawrak Logo" class="w-24 h-24 mb-4 drop-shadow-xl transform hover:rotate-3 transition-transform" />
-      <h1 class="text-2xl font-black text-emerald-950 tracking-tight">نظـام دورك للأرزاق</h1>
+    <!-- Header Section -->
+    <div class="w-full max-w-md flex flex-col items-center mb-12 animate-in slide-in-from-top duration-1000">
+      <img :src="logoUrl" alt="Dawrak Premium Logo" class="w-24 h-24 mb-6 drop-shadow-xl hover-float" />
+      <h1 class="text-2xl font-black text-emerald-950 tracking-tight">نظـام دورك</h1>
+      <p class="text-[0.6rem] font-bold text-slate-400 uppercase tracking-[0.3em] mt-2">النظـام والكرامة</p>
     </div>
 
-    <!-- Main Container -->
-    <div class="w-full max-w-md bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden relative group">
-      <!-- Top Decorative Bar -->
-      <div class="h-2 w-full bg-emerald-500"></div>
-
+    <!-- Main Live Queue Card -->
+    <div class="w-full max-w-md bg-white rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] border border-slate-100 overflow-hidden relative mb-8 hover-glow transition-all duration-500">
+      <div class="absolute top-0 left-0 w-full h-[6px] bg-emerald-600"></div>
+      
       <div class="p-10 flex flex-col items-center">
-        
-        <!-- Live Status Heading -->
-        <div class="flex items-center gap-2 mb-6">
-          <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span class="text-[0.6rem] font-black uppercase tracking-[0.2em] text-slate-400">مبـاشر الآن</span>
+        <!-- Live Indicator -->
+        <div class="flex items-center gap-2 mb-8 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">مبـاشر الآن</span>
         </div>
 
-        <!-- Current Serving Number -->
-        <div class="text-[8rem] font-black leading-none text-emerald-900 tracking-tighter mb-4 tabular-nums drop-shadow-sm transition-all group-hover:scale-105 duration-500">
-          {{ currentNumber }}
+        <!-- The Big Number -->
+        <div class="relative mb-4 group">
+          <div class="text-[10rem] font-black leading-none text-emerald-950 tracking-tighter tabular-nums drop-shadow-sm transition-transform duration-700 group-hover:scale-110">
+            {{ currentNumber }}
+          </div>
+          <!-- Pulse decoration -->
+          <div class="absolute inset-0 bg-emerald-500/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
         </div>
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-10">الرقم الذي يتم خدمته حالياً</p>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">الرقم الذي يتم خدمته حالياً</p>
 
-        <!-- Dynamic Content -->
-        <div class="w-full">
+        <!-- Dynamic Content Area -->
+        <div class="w-full mt-12">
           
           <!-- State: No Ticket -->
-          <Transition name="scale" mode="out-in">
-            <div v-if="myTicket === null" class="flex flex-col items-center">
+          <Transition name="fade-scale" mode="out-in">
+            <div v-if="myTicket === null" class="w-full flex flex-col items-center">
               <button 
                 @click="getTicket" 
                 :disabled="isLoading"
-                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 rounded-3xl text-xl font-black shadow-xl shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 rounded-[2rem] text-xl font-bold transition-all shadow-2xl shadow-emerald-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4 group"
               >
                 <span v-if="isLoading" class="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></span>
-                <span v-else>احصل على رقمك الآن</span>
+                <span v-else class="flex items-center gap-3">
+                  احصل على رقمك
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:-translate-x-1"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </span>
               </button>
               
-              <div class="mt-6 flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
-                <span class="text-slate-400 text-[0.7rem] font-bold">إجمالي المنتظرين:</span>
-                <span class="text-emerald-700 font-black text-sm">{{ Math.max(0, lastIssued - currentNumber) }}</span>
+              <div class="mt-8 flex items-center gap-2 opacity-60">
+                <span class="text-[0.65rem] font-bold text-slate-400">إجمالي المنتظرين:</span>
+                <span class="text-emerald-800 font-black text-sm">{{ Math.max(0, lastIssued - currentNumber) }}</span>
               </div>
             </div>
 
             <!-- State: Has Ticket -->
             <div v-else class="w-full">
-              <div class="bg-slate-50 rounded-[1.8rem] p-8 border border-slate-100 transition-all duration-500"
-                   :class="isMyTurn ? 'ring-4 ring-emerald-500 border-transparent bg-emerald-50' : ''">
+              <div class="bg-slate-50 rounded-[2.5rem] p-10 border border-slate-100 relative transition-all duration-700 overflow-hidden"
+                   :class="isMyTurn ? 'ring-[10px] ring-emerald-500/20 border-emerald-500 bg-emerald-50' : ''">
                 
-                <p class="text-[0.7rem] font-bold text-slate-400 mb-2 uppercase">رقمك الخاص</p>
-                <div class="text-6xl font-black text-emerald-950 mb-6">{{ myTicket }}</div>
+                <div class="relative z-10 flex flex-col items-center">
+                  <p class="text-[0.65rem] font-black text-slate-400 mb-2 uppercase tracking-widest">رقمك الخاص</p>
+                  <div class="text-7xl font-black text-emerald-950 mb-8 tabular-nums">{{ myTicket }}</div>
 
-                <!-- Turn Status -->
-                <div v-if="isMyTurn" class="bg-emerald-600 text-white py-4 px-6 rounded-2xl font-black text-center shadow-lg animate-pulse">
-                   ✨ تفضل! حان دورك الآن ✨
-                </div>
-                <div v-else-if="isPast" class="bg-slate-200 text-slate-600 py-4 px-6 rounded-2xl font-black text-center decoration-red-500 line-through">
-                   فات موعد دورك
-                   <p class="text-[0.6rem] no-underline font-bold mt-2 cursor-pointer hover:text-emerald-700" @click="myTicket = null">اضغط للتجديد</p>
-                </div>
-                <!-- Wait Info -->
-                <div v-else class="grid grid-cols-2 gap-4">
-                  <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                    <p class="text-[0.6rem] text-slate-400 font-bold mb-1">أمامك</p>
-                    <p class="text-2xl font-black text-emerald-800">{{ peopleAhead }}</p>
+                  <!-- Status Banner -->
+                  <div v-if="isMyTurn" class="w-full bg-emerald-600 text-white py-5 px-8 rounded-3xl font-black text-center shadow-xl shadow-emerald-200 animate-bounce-slow">
+                     تفضل! حان دورك الآن
                   </div>
-                  <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                    <p class="text-[0.6rem] text-slate-400 font-bold mb-1">وقت تقريبي</p>
-                    <p class="text-sm font-black text-emerald-800 mt-1">~ {{ peopleAhead * 5 }} دقيقة</p>
+                  <div v-else-if="isPast" class="w-full bg-slate-200 text-slate-500 py-5 px-8 rounded-3xl font-black text-center opacity-70">
+                     انتهي وقت دورك
+                     <p class="text-[0.6rem] font-bold mt-2 cursor-pointer text-emerald-700" @click="myTicket = null">اضغط هنا للتجديد</p>
+                  </div>
+                  <!-- Wait Info Grid -->
+                  <div v-else class="grid grid-cols-2 gap-4 w-full">
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center">
+                      <p class="text-[0.6rem] text-slate-400 font-black mb-1">أمامك</p>
+                      <p class="text-3xl font-black text-emerald-900 leading-none">{{ peopleAhead }}</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center">
+                      <p class="text-[0.6rem] text-slate-400 font-black mb-1">الوقت المتوقع</p>
+                      <p class="text-lg font-black text-emerald-900 mt-1">~ {{ peopleAhead * 5 }} د</p>
+                    </div>
                   </div>
                 </div>
+
+                <!-- Subtle background number -->
+                <div class="absolute -right-10 -bottom-10 text-[12rem] font-black text-emerald-950 opacity-[0.03] select-none pointer-events-none">{{ myTicket }}</div>
               </div>
 
-              <!-- Cancel Button -->
-              <button @click="cancelOrder" class="w-full mt-6 py-3 text-red-500 hover:text-red-700 text-[0.7rem] font-black uppercase tracking-widest transition-colors">
-                إلغاء حجز الدور
+              <!-- Refined Cancel Trigger -->
+              <button @click="requestCancel" class="w-full mt-8 py-4 text-rose-500 hover:text-rose-700 text-[0.7rem] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="opacity-50 group-hover:opacity-100"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                إلغاء الموعد والحجز
               </button>
             </div>
           </Transition>
@@ -206,67 +243,75 @@ const isPast = computed(() => myTicket.value !== null && myTicket.value < curren
       </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="mt-auto mb-6 text-slate-300 text-[0.6rem] font-bold uppercase tracking-widest opacity-50">
-      النظام والكرامة • DAWRAK SYSTEM
-    </footer>
+    <!-- Info Footer -->
+    <div class="mt-auto mb-4 flex flex-col items-center gap-4 opacity-30 text-[0.6rem] font-black uppercase tracking-[0.4em] pointer-events-none">
+      <div class="h-[1px] w-24 bg-slate-400/50"></div>
+      <span>Dawrak Elite Service</span>
+    </div>
 
   </div>
 </template>
 
 <style scoped>
-.animate-fade-in {
-  animation: fadeIn 1s ease-out;
+.safe-area-inset {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+.hover-float:hover {
+  transform: translateY(-8px) rotate(2deg);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out forwards;
+.hover-glow:hover {
+  box-shadow: 0 40px 80px -20px rgba(6, 78, 59, 0.12);
 }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Animations */
+.scale-animate {
+  animation: scaleBounce 3s infinite;
 }
 
-.animate-bounce-scale {
-  animation: bounceScale 3s infinite;
-}
-
-@keyframes bounceScale {
+@keyframes scaleBounce {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.3); }
+  50% { transform: scale(1.1); }
+}
+
+.animate-bounce-slow {
+  animation: bounceSlow 2s infinite;
+}
+
+@keyframes bounceSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
 
 /* Transitions */
-.scale-enter-active, .scale-leave-active {
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+.toast-enter-active, .toast-leave-active {
+  transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
-.scale-enter-from, .scale-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
-}
+.toast-enter-from { opacity: 0; transform: translate(-50%, -50px); }
+.toast-leave-to { opacity: 0; transform: translate(-50%, -20px); }
 
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.5s ease;
+.modal-enter-active, .modal-leave-active {
+  transition: opacity 0.3s ease;
 }
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
+.modal-enter-active .relative, .modal-leave-active .relative {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.modal-enter-from { opacity: 0; }
+.modal-enter-from .relative { transform: scale(0.9); }
+.modal-leave-to { opacity: 0; }
+.modal-leave-to .relative { transform: scale(0.95); }
 
-.slide-up-enter-active, .slide-up-leave-active {
-  transition: all 0.4s ease;
+.fade-scale-enter-active, .fade-scale-leave-active {
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.slide-up-enter-from {
-  transform: translate(-50%, 100%);
-  opacity: 0;
-}
-.slide-up-leave-to {
-  transform: translate(-50%, 50%);
-  opacity: 0;
-}
+.fade-scale-enter-from { opacity: 0; transform: scale(0.98) translateY(10px); }
+.fade-scale-leave-to { opacity: 0; transform: scale(1.02) translateY(-10px); }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.dir-ltr { direction: ltr; }
 </style>

@@ -150,31 +150,31 @@ const isPast = computed(() => myTicket.value !== null && myTicket.value < curren
     </div>
 
     <!-- Main Live Queue Card -->
-    <div class="w-full max-w-md bg-white rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] border border-slate-100 overflow-hidden relative mb-8 hover-glow transition-all duration-500">
-      <div class="absolute top-0 left-0 w-full h-[6px] bg-emerald-600"></div>
+    <div class="w-full max-w-md bg-white rounded-[3.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.08)] border border-slate-100/80 overflow-hidden relative mb-10 hover-glow transition-all duration-700">
+      <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-600 to-teal-500"></div>
       
-      <div class="p-10 flex flex-col items-center">
+      <div class="p-12 flex flex-col items-center">
         <!-- Live Indicator -->
-        <div class="flex items-center gap-2 mb-8 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
-          <span class="relative flex h-2 w-2">
+        <div class="flex items-center gap-2.5 mb-10 bg-emerald-50/50 px-5 py-2.5 rounded-full border border-emerald-100/50">
+          <span class="relative flex h-2.5 w-2.5">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
-          <span class="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">مبـاشر الآن</span>
+          <span class="text-[0.7rem] font-black text-emerald-800 uppercase tracking-widest">مبـاشر الآن</span>
         </div>
 
         <!-- The Big Number -->
-        <div class="relative mb-4 group">
-          <div class="text-[10rem] font-black leading-none text-emerald-950 tracking-tighter tabular-nums drop-shadow-sm transition-transform duration-700 group-hover:scale-110">
+        <div class="relative mb-6 group">
+          <div class="text-[11rem] font-black leading-none text-emerald-950 tracking-tighter tabular-nums drop-shadow-sm transition-transform duration-700 group-hover:scale-105">
             {{ currentNumber }}
           </div>
           <!-- Pulse decoration -->
           <div class="absolute inset-0 bg-emerald-500/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
         </div>
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">الرقم الذي يتم خدمته حالياً</p>
+        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-center">الرقم الذي يتم خدمته حالياً</p>
 
         <!-- Dynamic Content Area -->
-        <div class="w-full mt-12">
+        <div class="w-full mt-14">
           
           <!-- State: No Ticket -->
           <Transition name="fade-scale" mode="out-in">
@@ -182,59 +182,64 @@ const isPast = computed(() => myTicket.value !== null && myTicket.value < curren
               <button 
                 @click="getTicket" 
                 :disabled="isLoading"
-                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 rounded-[2rem] text-xl font-bold transition-all shadow-2xl shadow-emerald-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4 group"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-7 rounded-[2.5rem] text-2xl font-black transition-all shadow-2xl shadow-emerald-200/50 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4 group"
               >
-                <span v-if="isLoading" class="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></span>
+                <span v-if="isLoading" class="w-7 h-7 border-4 border-white/30 border-t-white rounded-full animate-spin"></span>
                 <span v-else class="flex items-center gap-3">
                   احصل على رقمك
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:-translate-x-1"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:-translate-x-2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 </span>
               </button>
               
-              <div class="mt-8 flex items-center gap-2 opacity-60">
-                <span class="text-[0.65rem] font-bold text-slate-400">إجمالي المنتظرين:</span>
-                <span class="text-emerald-800 font-black text-sm">{{ Math.max(0, lastIssued - currentNumber) }}</span>
+              <div class="mt-8 flex items-center gap-3 bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 opacity-80">
+                <span class="text-slate-400 text-[0.75rem] font-bold">إجمالي المنتظرين:</span>
+                <span class="text-emerald-800 font-black text-base">{{ Math.max(0, lastIssued - currentNumber) }}</span>
               </div>
             </div>
 
             <!-- State: Has Ticket -->
             <div v-else class="w-full">
-              <div class="bg-slate-50 rounded-[2.5rem] p-10 border border-slate-100 relative transition-all duration-700 overflow-hidden"
-                   :class="isMyTurn ? 'ring-[10px] ring-emerald-500/20 border-emerald-500 bg-emerald-50' : ''">
+              <div class="bg-slate-50/50 rounded-[3rem] p-12 border border-slate-100 relative transition-all duration-700 overflow-hidden"
+                   :class="isMyTurn ? 'ring-[12px] ring-emerald-500/10 border-emerald-500 bg-emerald-50/80 shadow-2xl shadow-emerald-100/50' : ''">
                 
-                <div class="relative z-10 flex flex-col items-center">
-                  <p class="text-[0.65rem] font-black text-slate-400 mb-2 uppercase tracking-widest">رقمك الخاص</p>
-                  <div class="text-7xl font-black text-emerald-950 mb-8 tabular-nums">{{ myTicket }}</div>
+                <div class="relative z-10 flex flex-col items-center text-center">
+                  <p class="text-[0.75rem] font-black text-slate-400 mb-3 uppercase tracking-widest">رقمك الخاص</p>
+                  <div class="text-[5.5rem] font-black text-emerald-950 mb-10 tabular-nums leading-none">{{ myTicket }}</div>
 
                   <!-- Status Banner -->
-                  <div v-if="isMyTurn" class="w-full bg-emerald-600 text-white py-5 px-8 rounded-3xl font-black text-center shadow-xl shadow-emerald-200 animate-bounce-slow">
-                     تفضل! حان دورك الآن
+                  <div v-if="isMyTurn" class="w-full bg-emerald-600 text-white py-6 px-8 rounded-3xl font-black text-xl shadow-xl shadow-emerald-200/50 animate-bounce-slow">
+                     تفضل! حان دورك الآن ✨
                   </div>
-                  <div v-else-if="isPast" class="w-full bg-slate-200 text-slate-500 py-5 px-8 rounded-3xl font-black text-center opacity-70">
+                  <div v-else-if="isPast" class="w-full bg-slate-200/80 text-slate-500 py-6 px-8 rounded-3xl font-black text-lg opacity-70">
                      انتهي وقت دورك
-                     <p class="text-[0.6rem] font-bold mt-2 cursor-pointer text-emerald-700" @click="myTicket = null">اضغط هنا للتجديد</p>
+                     <p class="text-[0.65rem] font-bold mt-2 cursor-pointer text-emerald-700 hover:underline" @click="myTicket = null">اضغط هنا للتجديد</p>
                   </div>
                   <!-- Wait Info Grid -->
-                  <div v-else class="grid grid-cols-2 gap-4 w-full">
-                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center">
-                      <p class="text-[0.6rem] text-slate-400 font-black mb-1">أمامك</p>
-                      <p class="text-3xl font-black text-emerald-900 leading-none">{{ peopleAhead }}</p>
+                  <div v-else class="grid grid-cols-2 gap-5 w-full">
+                    <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100/80 text-center">
+                      <p class="text-[0.7rem] text-slate-400 font-black mb-1.5 uppercase tracking-wider">أمامك</p>
+                      <p class="text-4xl font-black text-emerald-900 leading-none">{{ peopleAhead }}</p>
                     </div>
-                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center">
-                      <p class="text-[0.6rem] text-slate-400 font-black mb-1">الوقت المتوقع</p>
-                      <p class="text-lg font-black text-emerald-900 mt-1">~ {{ peopleAhead * 5 }} د</p>
+                    <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100/80 text-center">
+                      <p class="text-[0.7rem] text-slate-400 font-black mb-1.5 uppercase tracking-wider">الوقت المتوقع</p>
+                      <p class="text-xl font-black text-emerald-900 mt-1">~ {{ peopleAhead * 5 }} د</p>
                     </div>
                   </div>
                 </div>
 
-                <!-- Subtle background number -->
-                <div class="absolute -right-10 -bottom-10 text-[12rem] font-black text-emerald-950 opacity-[0.03] select-none pointer-events-none">{{ myTicket }}</div>
+                <!-- Subtle background number decoration -->
+                <div class="absolute -right-12 -bottom-12 text-[15rem] font-black text-emerald-950 opacity-[0.02] select-none pointer-events-none">{{ myTicket }}</div>
               </div>
 
-              <!-- Refined Cancel Trigger -->
-              <button @click="requestCancel" class="w-full mt-8 py-4 text-rose-500 hover:text-rose-700 text-[0.7rem] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="opacity-50 group-hover:opacity-100"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                إلغاء الموعد والحجز
+              <!-- Redesigned professional Cancel Button -->
+              <button 
+                @click="requestCancel" 
+                class="w-full mt-10 py-5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] transition-all border border-rose-100/50 flex items-center justify-center gap-3 group shadow-sm hover:shadow-md"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="opacity-70 group-hover:rotate-90 transition-transform duration-300">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+                <span>إلغاء الموعد والحجز</span>
               </button>
             </div>
           </Transition>
@@ -244,10 +249,11 @@ const isPast = computed(() => myTicket.value !== null && myTicket.value < curren
     </div>
 
     <!-- Info Footer -->
-    <div class="mt-auto mb-4 flex flex-col items-center gap-4 opacity-30 text-[0.6rem] font-black uppercase tracking-[0.4em] pointer-events-none">
-      <div class="h-[1px] w-24 bg-slate-400/50"></div>
-      <span>Dawrak Elite Service</span>
+    <div class="mt-auto mb-8 flex flex-col items-center gap-5 opacity-40 text-[0.7rem] font-black uppercase tracking-[0.4em] pointer-events-none">
+      <div class="h-[1px] w-32 bg-slate-300"></div>
+      <span>Dawrak Elite Service System</span>
     </div>
+
 
   </div>
 </template>

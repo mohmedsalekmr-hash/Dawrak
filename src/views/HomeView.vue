@@ -101,223 +101,234 @@ const isPast = computed(() => myTicket.value !== null && myTicket.value < curren
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 flex flex-col items-center justify-start p-6 safe-area-inset" dir="rtl">
+  <div class="min-h-screen bg-[#fcfdfd] flex flex-col items-center justify-start px-6 py-12 safe-area-inset font-sans" dir="rtl">
     
     <!-- Toast Notification -->
     <Transition name="toast">
       <div v-if="showToast" 
-           class="fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-center min-w-[300px] border border-white/20 backdrop-blur-xl"
+           class="fixed top-10 left-1/2 -translate-x-1/2 z-[100] px-8 py-5 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] flex items-center justify-center min-w-[320px] backdrop-blur-2xl border border-white/40"
            :class="{
-             'bg-emerald-600 text-white': showToast.type === 'success',
-             'bg-slate-800 text-white': showToast.type === 'info',
-             'bg-rose-600 text-white': showToast.type === 'error'
+             'bg-emerald-600/95 text-white shadow-emerald-200/50': showToast.type === 'success',
+             'bg-slate-900/95 text-white shadow-slate-200/50': showToast.type === 'info',
+             'bg-rose-600/95 text-white shadow-rose-200/50': showToast.type === 'error'
            }">
-        <span class="font-bold text-sm text-center">{{ showToast.text }}</span>
+        <span class="font-bold text-sm text-center leading-relaxed tracking-wide">{{ showToast.text }}</span>
       </div>
     </Transition>
 
     <!-- Celebration Overlay -->
     <Transition name="fade">
       <div v-if="showCelebration" class="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-        <div class="absolute inset-0 bg-emerald-500/5 backdrop-blur-[1px]"></div>
-        <div class="relative scale-animate text-8xl">🎫✨</div>
+        <div class="absolute inset-0 bg-emerald-50/20 backdrop-blur-[2px]"></div>
+        <div class="relative scale-animate text-[10rem]">🎫</div>
       </div>
     </Transition>
 
-    <!-- Custom Cancel Modal -->
+    <!-- Professional Cancel Modal -->
     <Transition name="modal">
       <div v-if="showCancelModal" class="fixed inset-0 z-[110] p-6 flex items-center justify-center">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showCancelModal = false"></div>
-        <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl text-center border border-slate-100 animate-in fade-in zoom-in duration-300">
-          <div class="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-rose-600"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <div class="absolute inset-0 bg-[#0c1e19]/60 backdrop-blur-md" @click="showCancelModal = false"></div>
+        <div class="relative w-full max-w-sm bg-white rounded-[3.5rem] p-10 shadow-3xl text-center border border-slate-100/50 overflow-hidden">
+          <div class="absolute top-0 left-0 w-full h-1.5 bg-rose-500"></div>
+          <div class="w-20 h-20 bg-rose-50 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-rose-600"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </div>
-          <h2 class="text-2xl font-black text-slate-900 mb-3">إلغاء الحجز؟</h2>
-          <p class="text-slate-500 mb-8 leading-relaxed">هل أنت متأكد من رغبتك في إلغاء تذكرتك الحالية؟ سيفقد رقمك ولن تتمكن من استعادته.</p>
-          <div class="grid grid-cols-2 gap-4">
-            <button @click="showCancelModal = false" class="py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold transition-all active:scale-95">تراجع</button>
-            <button @click="confirmCancel" class="py-4 rounded-2xl bg-rose-600 text-white font-bold transition-all shadow-lg shadow-rose-200 active:scale-95">نعم، إلغاء</button>
+          <h2 class="text-3xl font-black text-slate-900 mb-4 tracking-tight">إلغاء الموعد؟</h2>
+          <p class="text-slate-500 mb-10 leading-relaxed text-sm px-4">هل أنت متأكد من رغبتك في إلغاء تذكرتك؟ سيتم حذف دورك ولن تتمكن من العودة إليه لاحقاً.</p>
+          <div class="flex flex-col gap-3">
+             <button @click="confirmCancel" class="w-full py-5 rounded-[1.8rem] bg-rose-600 text-white font-black text-lg transition-all shadow-xl shadow-rose-200 hover:bg-rose-700 active:scale-[0.98]">نعم، إلغاء الحجز</button>
+             <button @click="showCancelModal = false" class="w-full py-4 rounded-[1.8rem] text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors">تراجع</button>
           </div>
         </div>
       </div>
     </Transition>
 
-    <!-- Header Section -->
-    <div class="w-full max-w-md flex flex-col items-center mb-12 animate-in slide-in-from-top duration-1000">
-      <img :src="logoUrl" alt="Dawrak Premium Logo" class="w-24 h-24 mb-6 drop-shadow-xl hover-float" />
-      <h1 class="text-2xl font-black text-emerald-950 tracking-tight">نظـام دورك</h1>
-      <p class="text-[0.6rem] font-bold text-slate-400 uppercase tracking-[0.3em] mt-2">النظـام والكرامة</p>
-    </div>
-
-    <!-- Main Live Queue Card -->
-    <div class="w-full max-w-md bg-white rounded-[3.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.08)] border border-slate-100/80 overflow-hidden relative mb-10 hover-glow transition-all duration-700">
-      <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-600 to-teal-500"></div>
-      
-      <div class="p-12 flex flex-col items-center">
-        <!-- Live Indicator -->
-        <div class="flex items-center gap-2.5 mb-10 bg-emerald-50/50 px-5 py-2.5 rounded-full border border-emerald-100/50">
-          <span class="relative flex h-2.5 w-2.5">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-          </span>
-          <span class="text-[0.7rem] font-black text-emerald-800 uppercase tracking-widest">مبـاشر الآن</span>
-        </div>
-
-        <!-- The Big Number -->
-        <div class="relative mb-6 group">
-          <div class="text-[11rem] font-black leading-none text-emerald-950 tracking-tighter tabular-nums drop-shadow-sm transition-transform duration-700 group-hover:scale-105">
-            {{ currentNumber }}
-          </div>
-          <!-- Pulse decoration -->
-          <div class="absolute inset-0 bg-emerald-500/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        </div>
-        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-center">الرقم الذي يتم خدمته حالياً</p>
-
-        <!-- Dynamic Content Area -->
-        <div class="w-full mt-14">
-          
-          <!-- State: No Ticket -->
-          <Transition name="fade-scale" mode="out-in">
-            <div v-if="myTicket === null" class="w-full flex flex-col items-center">
-              <button 
-                @click="getTicket" 
-                :disabled="isLoading"
-                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-7 rounded-[2.5rem] text-2xl font-black transition-all shadow-2xl shadow-emerald-200/50 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4 group"
-              >
-                <span v-if="isLoading" class="w-7 h-7 border-4 border-white/30 border-t-white rounded-full animate-spin"></span>
-                <span v-else class="flex items-center gap-3">
-                  احصل على رقمك
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:-translate-x-2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                </span>
-              </button>
-              
-              <div class="mt-8 flex items-center gap-3 bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 opacity-80">
-                <span class="text-slate-400 text-[0.75rem] font-bold">إجمالي المنتظرين:</span>
-                <span class="text-emerald-800 font-black text-base">{{ Math.max(0, lastIssued - currentNumber) }}</span>
-              </div>
-            </div>
-
-            <!-- State: Has Ticket -->
-            <div v-else class="w-full">
-              <div class="bg-slate-50/50 rounded-[3rem] p-12 border border-slate-100 relative transition-all duration-700 overflow-hidden"
-                   :class="isMyTurn ? 'ring-[12px] ring-emerald-500/10 border-emerald-500 bg-emerald-50/80 shadow-2xl shadow-emerald-100/50' : ''">
-                
-                <div class="relative z-10 flex flex-col items-center text-center">
-                  <p class="text-[0.75rem] font-black text-slate-400 mb-3 uppercase tracking-widest">رقمك الخاص</p>
-                  <div class="text-[5.5rem] font-black text-emerald-950 mb-10 tabular-nums leading-none">{{ myTicket }}</div>
-
-                  <!-- Status Banner -->
-                  <div v-if="isMyTurn" class="w-full bg-emerald-600 text-white py-6 px-8 rounded-3xl font-black text-xl shadow-xl shadow-emerald-200/50 animate-bounce-slow">
-                     تفضل! حان دورك الآن ✨
-                  </div>
-                  <div v-else-if="isPast" class="w-full bg-slate-200/80 text-slate-500 py-6 px-8 rounded-3xl font-black text-lg opacity-70">
-                     انتهي وقت دورك
-                     <p class="text-[0.65rem] font-bold mt-2 cursor-pointer text-emerald-700 hover:underline" @click="myTicket = null">اضغط هنا للتجديد</p>
-                  </div>
-                  <!-- Wait Info Grid -->
-                  <div v-else class="grid grid-cols-2 gap-5 w-full">
-                    <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100/80 text-center">
-                      <p class="text-[0.7rem] text-slate-400 font-black mb-1.5 uppercase tracking-wider">أمامك</p>
-                      <p class="text-4xl font-black text-emerald-900 leading-none">{{ peopleAhead }}</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100/80 text-center">
-                      <p class="text-[0.7rem] text-slate-400 font-black mb-1.5 uppercase tracking-wider">الوقت المتوقع</p>
-                      <p class="text-xl font-black text-emerald-900 mt-1">~ {{ peopleAhead * 5 }} د</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Subtle background number decoration -->
-                <div class="absolute -right-12 -bottom-12 text-[15rem] font-black text-emerald-950 opacity-[0.02] select-none pointer-events-none">{{ myTicket }}</div>
-              </div>
-
-              <!-- Redesigned professional Cancel Button -->
-              <button 
-                @click="requestCancel" 
-                class="w-full mt-10 py-5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] transition-all border border-rose-100/50 flex items-center justify-center gap-3 group shadow-sm hover:shadow-md"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="opacity-70 group-hover:rotate-90 transition-transform duration-300">
-                  <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-                <span>إلغاء الموعد والحجز</span>
-              </button>
-            </div>
-          </Transition>
-
-        </div>
+    <!-- Header Section - Elite Branding -->
+    <div class="w-full max-w-md flex flex-col items-center mb-16 animate-in slide-in-from-top duration-700">
+      <div class="relative p-1 bg-white rounded-[2.5rem] shadow-[0_15px_30px_rgba(0,0,0,0.03)] border border-slate-100/50 mb-6">
+        <img :src="logoUrl" alt="Dawrak Logo" class="w-20 h-20 rounded-[2.2rem] drop-shadow-sm hover:rotate-6 transition-transform duration-500" />
       </div>
+      <h1 class="text-3xl font-black text-emerald-950 tracking-tighter">نظـام دورك</h1>
+      <p class="text-[0.7rem] font-bold text-emerald-600/60 uppercase tracking-[0.5em] mt-3">النظـام والكرامة</p>
     </div>
 
-    <!-- Info Footer -->
-    <div class="mt-auto mb-8 flex flex-col items-center gap-5 opacity-40 text-[0.7rem] font-black uppercase tracking-[0.4em] pointer-events-none">
-      <div class="h-[1px] w-32 bg-slate-300"></div>
-      <span>Dawrak Elite Service System</span>
+    <!-- Main Container -->
+    <div class="w-full max-w-lg flex flex-col gap-8">
+      
+      <!-- State 1: No Ticket (Current Status Only) -->
+      <Transition name="fade-scale" mode="out-in">
+        <div v-if="myTicket === null" class="w-full flex flex-col items-center">
+          
+          <!-- Large Card for Serving Info -->
+          <div class="w-full bg-white rounded-[4rem] p-16 shadow-[0_50px_100px_-20px_rgba(6,78,59,0.06)] border border-slate-100 flex flex-col items-center relative overflow-hidden group mb-8">
+            <div class="absolute inset-0 bg-gradient-to-b from-emerald-50/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+            
+            <div class="flex items-center gap-3 mb-10 bg-emerald-50 px-6 py-2.5 rounded-full border border-emerald-100/50 relative z-10">
+              <span class="flex h-2.5 w-2.5 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span class="text-[0.75rem] font-black text-emerald-800 uppercase tracking-widest">مبـاشر الآن</span>
+            </div>
+
+            <div class="text-[12rem] font-black leading-none text-emerald-950 tracking-[calc(-0.05em)] tabular-nums mb-6 transition-transform duration-1000 group-hover:scale-[1.03] select-none">
+              {{ currentNumber }}
+            </div>
+            <p class="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] relative z-10">الرقم قيد الخدمة</p>
+          </div>
+
+          <!-- Get Ticket Action -->
+          <button 
+            @click="getTicket" 
+            :disabled="isLoading"
+            class="w-full max-w-md bg-emerald-600 hover:bg-emerald-700 text-white py-8 rounded-[3rem] text-2xl font-black transition-all shadow-[0_20px_40px_rgba(5,150,105,0.25)] active:scale-95 disabled:opacity-50 flex items-center justify-center gap-5 group"
+          >
+            <span v-if="isLoading" class="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></span>
+            <span v-else class="flex items-center gap-4">
+              احصل على دورك
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:-translate-x-3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </span>
+          </button>
+
+          <div class="mt-10 flex items-center gap-3 text-slate-400 font-bold text-xs uppercase tracking-widest">
+            <span>المنتظرين:</span>
+            <span class="text-emerald-800 font-black text-lg">{{ Math.max(0, lastIssued - currentNumber) }}</span>
+          </div>
+        </div>
+
+        <!-- State 2: Has Ticket (User Prominence First) -->
+        <div v-else class="w-full flex flex-col items-center">
+          
+          <!-- PROMINENT USER TICKET CARD (ON TOP) -->
+          <div class="w-full bg-[#0c1e19] rounded-[4rem] p-16 shadow-[0_50px_100px_-20px_rgba(6,78,59,0.3)] flex flex-col items-center relative overflow-hidden mb-8 transition-all duration-700"
+               :class="isMyTurn ? 'ring-[16px] ring-emerald-500/10 scale-105' : ''">
+            
+            <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[100px] rounded-full"></div>
+            <div class="absolute bottom-0 left-0 w-48 h-48 bg-emerald-300/5 blur-[80px] rounded-full"></div>
+
+            <p class="text-[0.8rem] font-black text-emerald-400 uppercase tracking-[0.4em] mb-4 relative z-10">رقم تذكرتك الخاص</p>
+            <div class="text-[13rem] font-black leading-none text-white tracking-tighter tabular-nums mb-10 transition-transform duration-1000 select-none relative z-10">
+              {{ myTicket }}
+            </div>
+
+            <!-- Turn Status Indicator -->
+            <div class="w-full relative z-10">
+              <div v-if="isMyTurn" class="bg-emerald-500 text-white py-7 px-10 rounded-[2.5rem] font-black text-2xl text-center shadow-2xl shadow-emerald-500/20 animate-bounce-slow">
+                 ✨ تفضل! دورك الآن
+              </div>
+              <div v-else-if="isPast" class="bg-slate-800 text-slate-500 py-7 px-10 rounded-[2.5rem] font-black text-xl text-center border border-white/5">
+                 انتهى مـوعد دورك
+                 <p class="text-[0.7rem] font-bold mt-2 cursor-pointer text-emerald-400 hover:underline" @click="myTicket = null">اضغط للتجديد</p>
+              </div>
+              <!-- Wait Progress info -->
+              <div v-else class="grid grid-cols-2 gap-6 w-full">
+                <div class="bg-white/5 backdrop-blur-md p-7 rounded-[2.5rem] border border-white/10 text-center">
+                  <p class="text-[0.65rem] text-emerald-400/60 font-black mb-1.5 uppercase tracking-widest">أمامك</p>
+                  <p class="text-4xl font-black text-white leading-none">{{ peopleAhead }}</p>
+                </div>
+                <div class="bg-white/5 backdrop-blur-md p-7 rounded-[2.5rem] border border-white/10 text-center">
+                  <p class="text-[0.65rem] text-emerald-400/60 font-black mb-1.5 uppercase tracking-widest">مدة الانتظار</p>
+                  <p class="text-2xl font-black text-white mt-1 leading-none">~{{ peopleAhead * 5 }}د</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECONDARY: CURRENT SERVING INFO -->
+          <div class="w-full max-w-sm bg-white rounded-[3rem] p-8 shadow-xl border border-slate-100/80 flex flex-row items-center justify-between mb-12">
+            <div class="flex flex-col items-start gap-1">
+              <span class="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">يتم خدمته حالياً</span>
+              <span class="text-4xl font-black text-emerald-900 leading-none">{{ currentNumber }}</span>
+            </div>
+            <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald-600"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path></svg>
+            </div>
+          </div>
+
+          <!-- PROFESSIONAL CANCEL TRIGGER -->
+          <button 
+            @click="requestCancel" 
+            class="w-full max-w-xs py-5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-[2.2rem] text-xs font-black uppercase tracking-[0.3em] transition-all border border-rose-100/30 flex items-center justify-center gap-3 group"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="opacity-50 group-hover:rotate-90 transition-transform duration-500">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            <span>إلغاء الموعد والحجز</span>
+          </button>
+        </div>
+      </Transition>
+
     </div>
 
+    <!-- ELITE FOOTER -->
+    <div class="mt-auto pt-16 pb-8 flex flex-col items-center gap-6 opacity-30 text-[0.7rem] font-black uppercase tracking-[0.6em] pointer-events-none w-full max-w-xs">
+      <div class="h-[1px] w-full bg-slate-300/50"></div>
+      <span class="text-center">Dawrak Elite Service System</span>
+    </div>
 
   </div>
 </template>
 
 <style scoped>
 .safe-area-inset {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: max(3rem, env(safe-area-inset-top));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
 }
 
-.hover-float:hover {
-  transform: translateY(-8px) rotate(2deg);
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+.shadow-3xl {
+  box-shadow: 0 60px 120px -30px rgba(0, 78, 59, 0.15);
 }
 
-.hover-glow:hover {
-  box-shadow: 0 40px 80px -20px rgba(6, 78, 59, 0.12);
-}
-
-/* Animations */
+/* Elite Scale Animation */
 .scale-animate {
-  animation: scaleBounce 3s infinite;
+  animation: elitePulse 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-@keyframes scaleBounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+@keyframes elitePulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
 }
 
 .animate-bounce-slow {
-  animation: bounceSlow 2s infinite;
+  animation: bounceSlow 2s infinite ease-in-out;
 }
 
 @keyframes bounceSlow {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  50% { transform: translateY(-8px); }
 }
 
-/* Transitions */
+/* Vue Transitions */
 .toast-enter-active, .toast-leave-active {
-  transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1);
 }
-.toast-enter-from { opacity: 0; transform: translate(-50%, -50px); }
-.toast-leave-to { opacity: 0; transform: translate(-50%, -20px); }
+.toast-enter-from { opacity: 0; transform: translate(-50%, -40px); }
+.toast-leave-to { opacity: 0; transform: translate(-50%, -10px); }
 
 .modal-enter-active, .modal-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.4s ease;
 }
 .modal-enter-active .relative, .modal-leave-active .relative {
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
 .modal-enter-from { opacity: 0; }
-.modal-enter-from .relative { transform: scale(0.9); }
+.modal-enter-from .relative { transform: scale(1.05) translateY(20px); }
 .modal-leave-to { opacity: 0; }
-.modal-leave-to .relative { transform: scale(0.95); }
+.modal-leave-to .relative { transform: scale(0.98); }
 
 .fade-scale-enter-active, .fade-scale-leave-active {
-  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
 }
-.fade-scale-enter-from { opacity: 0; transform: scale(0.98) translateY(10px); }
-.fade-scale-leave-to { opacity: 0; transform: scale(1.02) translateY(-10px); }
+.fade-scale-enter-from { opacity: 0; transform: scale(0.96) translateY(30px); }
+.fade-scale-leave-to { opacity: 0; transform: scale(1.04) translateY(-30px); }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.8s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-.dir-ltr { direction: ltr; }
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .text-\[12rem\] { font-size: 8rem; }
+  .text-\[13rem\] { font-size: 9rem; }
+  .p-16 { padding: 3rem 2rem; }
+}
 </style>

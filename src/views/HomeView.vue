@@ -4,7 +4,6 @@ import { supabase } from '../supabase'
 import { useLocalStorage } from '@vueuse/core'
 import { useSound } from '@vueuse/sound'
 
-
 /** State Management - Keeping existing project logic intact */
 const currentNumber = ref(0)
 const lastIssued = ref(0)
@@ -86,99 +85,125 @@ const isFinished = computed(() => myTicket.value !== null && myTicket.value < cu
 </script>
 
 <template>
-  <div class="min-h-screen bg-white flex flex-col items-center justify-between px-8 py-12 font-['Inter',sans-serif] selection:bg-emerald-100 overflow-hidden" dir="rtl">
+  <div class="min-h-screen bg-white flex flex-col items-center justify-center p-6 font-['Inter',sans-serif] selection:bg-emerald-100 overflow-hidden relative" dir="rtl">
     
-    <!-- Top Branding / Header -->
-    <header class="flex flex-col items-center animate-in fade-in slide-in-from-top duration-700">
-      <div class="flex items-center gap-2 mb-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-900"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-        <span class="text-base font-bold text-slate-900">نظام دورك</span>
+    <!-- Poetic Background Decoration -->
+    <div class="absolute inset-0 pointer-events-none overflow-hidden">
+      <div class="absolute -top-24 -right-24 w-96 h-96 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+      <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+    </div>
+
+    <!-- Header / Branding -->
+    <header class="absolute top-12 flex flex-col items-center animate-in fade-in slide-in-from-top duration-1000">
+      <div class="flex items-center gap-2 px-6 py-2 bg-emerald-50 rounded-full border border-emerald-100 shadow-sm">
+        <div class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></div>
+        <span class="text-xs font-black text-emerald-800 tracking-widest uppercase">نظام دورك الذكي</span>
       </div>
     </header>
 
-    <!-- Main Hero Circle Section -->
-    <main class="flex-1 flex flex-col items-center justify-center w-full max-w-lg mt-[-10vh]">
-      <div class="relative w-full aspect-square max-w-[380px] flex items-center justify-center">
+    <!-- Main Content: Vertical Center Hero -->
+    <main class="w-full max-w-lg flex flex-col items-center justify-center relative z-10">
+      <Transition name="hero-transition" mode="out-in">
         
-        <!-- Background Glows/Blobs (Reference Style) -->
-        <div class="absolute inset-0 bg-emerald-500/5 blur-[80px] rounded-full animate-pulse"></div>
-        <div class="absolute inset-4 bg-emerald-400/5 blur-[60px] rounded-full animate-pulse delay-700"></div>
-
-        <!-- The Main Circle Ring -->
+        <!-- Large Card for Current Number -->
         <div 
-          class="absolute inset-0 border-[14px] rounded-full transition-all duration-1000 flex flex-col items-center justify-center p-12 text-center bg-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)]"
-          :class="isMyTurn ? 'border-emerald-500 shadow-[0_0_80px_rgba(16,185,129,0.2)]' : 'border-emerald-600'"
+          v-if="myTicket === null" 
+          key="serving"
+          class="w-full bg-white rounded-[3rem] p-16 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-gray-50 flex flex-col items-center group transition-transform hover:scale-105 duration-700"
         >
-          <Transition name="content-swap" mode="out-in">
-            <!-- No Ticket State -->
-            <div v-if="myTicket === null" key="no-ticket" class="flex flex-col items-center">
-              <p class="text-slate-500 text-sm font-medium mb-4 uppercase tracking-widest text-center px-4 leading-relaxed">الرقم قيد الخدمة حالياً</p>
-              <div class="text-[9rem] font-black leading-none text-slate-900 tracking-tighter tabular-nums mb-4">{{ currentNumber }}</div>
-              <p class="text-emerald-600 text-sm font-bold opacity-80">— دورك بانتظاركم</p>
-            </div>
-
-            <!-- Has Ticket State -->
-            <div v-else key="has-ticket" class="flex flex-col items-center">
-              <p class="text-slate-500 text-base font-medium mb-2 uppercase tracking-tight">رقم تذكرتكم هو <span class="font-black text-slate-900">#{{ myTicket }}</span></p>
-              
-              <div v-if="isMyTurn" class="flex flex-col items-center animate-in zoom-in duration-500">
-                <h2 class="text-5xl font-black text-slate-900 leading-[1.15] mb-4">لقد حان دوركم الآن!</h2>
-                <p class="text-emerald-600 text-base font-bold">— يرجى التوجه لخدمة العملاء</p>
-              </div>
-              
-              <div v-else-if="isFinished" class="flex flex-col items-center opacity-40">
-                <h2 class="text-4xl font-black text-slate-900 leading-tight mb-4">انتهت مدة الحجز</h2>
-                <p class="text-slate-400 text-sm font-medium">— شكراً لزيارتكم</p>
-              </div>
-
-              <div v-else class="flex flex-col items-center">
-                <h2 class="text-5xl font-black text-slate-900 leading-[1.15] mb-4">ترتيبكم <span class="text-emerald-600">{{ peopleAhead + 1 }}</span> في القائمة</h2>
-                <p class="text-slate-500 text-base font-medium opacity-80">— نقترب من خدمتكم!</p>
-              </div>
-            </div>
-          </Transition>
+          <p class="text-[0.7rem] font-bold text-slate-400 uppercase tracking-[0.3em] mb-12">الرقم قيد الخدمة حالياً</p>
+          <div class="text-[12rem] md:text-[14rem] font-black leading-none text-slate-900 tracking-tighter tabular-nums mb-12 drop-shadow-sm group-hover:text-emerald-950 transition-colors">
+            {{ currentNumber }}
+          </div>
+          <div class="flex items-center gap-2 px-5 py-2 bg-emerald-50 rounded-full border border-emerald-100">
+            <span class="text-[0.65rem] font-black text-emerald-700 uppercase tracking-widest">مباشر الآن</span>
+          </div>
         </div>
-      </div>
+
+        <!-- Personal Ticket Display Card -->
+        <div 
+          v-else 
+          key="ticket"
+          class="w-full bg-white rounded-[3rem] p-12 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.1)] border transition-all duration-700 flex flex-col items-center relative"
+          :class="isMyTurn ? 'border-emerald-500 ring-[20px] ring-emerald-500/5 shadow-[0_0_100px_rgba(16,185,129,0.2)]' : 'border-gray-50'"
+        >
+          <div class="absolute top-0 right-1/2 translate-x-1/2 w-16 h-8 bg-white border-b border-gray-50 rounded-b-3xl"></div>
+          
+          <div class="mb-8 text-center">
+            <p class="text-[0.7rem] font-black text-slate-400 uppercase tracking-[0.4em] mb-6">رقم تذكرتك الخاصة</p>
+            <div class="text-[8rem] font-black text-slate-900 leading-none tabular-nums animate-in zoom-in duration-500">{{ myTicket }}</div>
+          </div>
+
+          <!-- Turn Awareness Messaging -->
+          <div v-if="isMyTurn && !isFinished" class="w-full bg-emerald-600 text-white p-8 rounded-[2rem] shadow-2xl shadow-emerald-200/50 flex flex-col items-center animate-bounce-gentle">
+            <h2 class="text-3xl font-black mb-1">حان دوركم الآن!</h2>
+            <p class="text-emerald-50 text-sm font-medium opacity-80">يرجى من فضلكم التوجه لخدمة العملاء</p>
+          </div>
+
+          <div v-else-if="isFinished" class="w-full opacity-40 flex flex-col items-center">
+            <div class="h-[2px] w-20 bg-slate-200 mb-6"></div>
+            <h2 class="text-3xl font-black text-slate-900 mb-2">انتهى موعد دوركم</h2>
+            <p class="text-slate-500 text-sm font-medium">نأمل أن تكون خدمتكم قد تمت بنجاح</p>
+          </div>
+
+          <div v-else class="w-full grid grid-cols-2 gap-6 mt-6">
+            <div class="bg-emerald-50 p-8 rounded-[2.5rem] flex flex-col items-center border border-emerald-100/50 group hover:bg-emerald-100/50 transition-colors">
+              <span class="text-[0.65rem] text-emerald-800 font-black mb-1 uppercase tracking-widest">أمامك</span>
+              <p class="text-5xl font-black text-emerald-950">{{ peopleAhead }}</p>
+            </div>
+            <div class="bg-emerald-50 p-8 rounded-[2.5rem] flex flex-col items-center border border-emerald-100/50 group hover:bg-emerald-100/50 transition-colors text-center">
+              <span class="text-[0.65rem] text-emerald-800 font-black mb-1 uppercase tracking-widest leading-relaxed">الوقت المتوقع</span>
+              <p class="text-3xl font-black text-emerald-950">~{{ peopleAhead * 5 }} د</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </main>
 
-    <!-- Bottom Actions Section -->
-    <footer class="w-full max-w-md flex flex-col items-center gap-4 animate-in slide-in-from-bottom duration-700">
-      <Transition name="action-swap" mode="out-in">
+    <!-- Bottom Actions Section (Vertical Alignment Support) -->
+    <footer class="absolute bottom-12 w-full max-w-sm flex flex-col items-center gap-6 animate-in slide-in-from-bottom duration-1000">
+      <Transition name="action-fade" mode="out-in">
         
-        <!-- Get Ticket Button (Primary Emerald) -->
+        <!-- Get Ticket Action -->
         <div v-if="myTicket === null" class="w-full">
           <button 
             @click="getTicket" 
             :disabled="isLoading"
-            class="w-full py-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl transition-all shadow-xl shadow-emerald-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+            class="w-full py-7 rounded-[2.5rem] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-2xl transition-all shadow-[0_30px_60px_-15px_rgba(5,150,105,0.4)] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-4 relative overflow-hidden group"
           >
-            <span v-if="isLoading" class="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin"></span>
-            <span v-else>احصل على رقمك</span>
+            <!-- Shimmer effect -->
+            <div class="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 skew-x-12"></div>
+            
+            <span v-if="isLoading" class="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin"></span>
+            <span v-else class="flex items-center gap-4">
+              احصل على دورك
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:-translate-x-2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </span>
           </button>
         </div>
 
-        <!-- Quit/Reset Button (Secondary Light Gray) -->
-        <div v-else class="w-full">
-          <button 
-            @click="cancelTicket" 
-            class="w-full py-5 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 font-bold text-base transition-all active:scale-[0.98] border border-slate-100/50"
-          >
-            {{ isFinished ? 'بدء حجز جديد' : 'إلغاء حجز الدور' }}
-          </button>
+        <!-- Management Action -->
+        <div v-else class="w-full flex flex-col items-center gap-4 px-8">
+           <button 
+              @click="cancelTicket" 
+              class="w-full py-5 rounded-[2rem] bg-slate-100 hover:bg-slate-200 text-slate-500 font-black text-sm uppercase tracking-[0.3em] transition-all active:scale-[0.98] border border-slate-200/50"
+            >
+              {{ isFinished ? 'بدء حجز جديد' : 'إلغاء حجز الدور' }}
+            </button>
         </div>
       </Transition>
 
-      <!-- Sub-footer Info -->
-      <div v-if="myTicket === null" class="flex items-center gap-2 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest opacity-60">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        عدد المنتظرين حالياً: {{ Math.max(0, lastIssued - currentNumber) }}
+      <!-- Status Indicator -->
+      <div v-if="myTicket === null" class="flex items-center gap-3 py-1 px-4 opacity-40">
+        <span class="text-[0.65rem] font-bold text-slate-400 uppercase tracking-widest">عدد المنتظرين: {{ Math.max(0, lastIssued - currentNumber) }}</span>
       </div>
     </footer>
 
-    <!-- Celebration Animation Overlay -->
-    <Transition name="fade">
-      <div v-if="showCelebration" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-white/40 backdrop-blur-sm">
-        <div class="text-8xl animate-ticket-pop drop-shadow-2xl">🎫</div>
+    <!-- Celebration / Ticket Generated Effect -->
+    <Transition name="pop-up">
+      <div v-if="showCelebration" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        <div class="absolute inset-0 bg-white/60 backdrop-blur-md"></div>
+        <div class="text-[15rem] drop-shadow-[0_20px_100px_rgba(16,185,129,0.3)] animate-pop-in">🎫</div>
       </div>
     </Transition>
 
@@ -186,45 +211,52 @@ const isFinished = computed(() => myTicket.value !== null && myTicket.value < cu
 </template>
 
 <style scoped>
-/* Modern Minimalist Animations */
-.animate-ticket-pop {
-  animation: ticketPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* Poetic Transitions */
+.hero-transition-enter-active, .hero-transition-leave-active {
+  transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.hero-transition-enter-from { opacity: 0; transform: scale(0.95) translateY(20px); }
+.hero-transition-leave-to { opacity: 0; transform: scale(1.05) translateY(-20px); }
+
+.action-fade-enter-active, .action-fade-leave-active {
+  transition: all 0.6s ease;
+}
+.action-fade-enter-from { opacity: 0; transform: translateY(10px); }
+.action-fade-leave-to { opacity: 0; transform: translateY(-10px); }
+
+/* Animation Keyframes */
+@keyframes bounceGentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-bounce-gentle {
+  animation: bounceGentle 2s infinite ease-in-out;
 }
 
-@keyframes ticketPop {
-  0% { transform: scale(0.5) rotate(-15deg); opacity: 0; }
+@keyframes popIn {
+  0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  60% { transform: scale(1.1) rotate(5deg); opacity: 1; }
   100% { transform: scale(1) rotate(0); opacity: 1; }
 }
-
-/* Vue Content Transitions */
-.content-swap-enter-active, .content-swap-leave-active {
-  transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1);
-}
-.content-swap-enter-from { opacity: 0; transform: translateY(20px) scale(0.95); }
-.content-swap-leave-to { opacity: 0; transform: translateY(-20px) scale(1.05); }
-
-.action-swap-enter-active, .action-swap-leave-active {
-  transition: all 0.5s ease-out;
-}
-.action-swap-enter-from { opacity: 0; transform: translateY(10px); }
-.action-swap-leave-to { opacity: 0; transform: translateY(-10px); }
-
-.fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-/* Pulse for active turn */
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.1); border-color: rgb(16, 185, 129); }
-  50% { box-shadow: 0 0 80px rgba(16, 185, 129, 0.3); border-color: rgb(52, 211, 153); }
+.animate-pop-in {
+  animation: popIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.animate-gentle-pulse {
-  animation: pulseGlow 2s infinite ease-in-out;
+.pop-up-enter-active, .pop-up-leave-active {
+  transition: opacity 0.5s ease;
+}
+.pop-up-enter-from, .pop-up-leave-to {
+  opacity: 0;
 }
 
-/* Ensure centering on very small screens */
-@media (max-height: 600px) {
-  header { margin-bottom: 2rem; }
-  main { margin-top: 0; }
+/* Typography Enhancements */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .text-\[12rem\] { font-size: 8rem; }
+  .p-16 { padding: 4rem 1.5rem; }
+  .p-12 { padding: 3rem 1.5rem; }
 }
 </style>

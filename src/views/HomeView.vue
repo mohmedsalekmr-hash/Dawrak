@@ -4,101 +4,109 @@ import { supabase } from '../supabase'
 import { useLocalStorage } from '@vueuse/core'
 import { useSound } from '@vueuse/sound'
 
-/** State Management - Keeping production backend logic intact */
+/** State Section */
 const currentNumber = ref(0)
 const lastIssued = ref(0)
 const queueId = ref<number | null>(null)
 const myTicket = useLocalStorage<number | null>('dawrak-ticket', null)
 const isLoading = ref(false)
 const showCelebrationList = ref<number[]>([])
+const isNotificationsEnabled = ref(false)
+const showNotificationToast = ref(false)
 
-// Audio notification
-const notificationSound = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
-const { play } = useSound(notificationSound)
+const { play } = useSound('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
 
-/** Core Logic Initialization */
-onMounted(async () => {
-  let { data } = await supabase.from('queues').select('*').limit(1).maybeSingle()
-  
-  if (!data) {
-    const res = await supabase.from('queues').insert({ name: 'Default Queue', current_number: 0, last_issued_number: 0 }).select().single()
-    if (res.data) data = res.data
-  }
-
-  if (data) {
-    queueId.value = data.id
-    currentNumber.value = data.current_number ?? 0
-    lastIssued.value = data.last_issued_number ?? 0
-  }
-
-  supabase
-    .channel('queues')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'queues' }, (payload) => {
-      const newRow = payload.new as any
-      if (queueId.value && newRow.id === queueId.value) {
-        if((newRow.current_number ?? 0) > currentNumber.value) {
-           play()
-        }
-        currentNumber.value = newRow.current_number ?? 0
-        lastIssued.value = newRow.last_issued_number ?? 0
-      }
-    })
-    .subscribe()
-})
-
-/** User Actions */
-async function getTicket() {
-  if (!queueId.value) return
+/** Core Actions */
+async function issueTicket() {
+  if (!queueId.value || isLoading.value) return
   isLoading.value = true
-  
-  const { data, error } = await supabase.rpc('next_ticket', { queue_id: queueId.value })
-  
-  if (data) {
-    myTicket.value = data
-    triggerCelebration()
-  } else {
-    console.error('Error getting ticket:', error)
+  try {
+    const { data, error } = await supabase.rpc('next_ticket', { queue_id: queueId.value })
+    if (data) {
+      myTicket.value = data
+      const id = Date.now()
+      showCelebrationList.value.push(id)
+      setTimeout(() => {
+        showCelebrationList.value = showCelebrationList.value.filter(i => i !== id)
+      }, 4000)
+    } else if (error) {
+      console.error(error)
+    }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    isLoading.value = false
   }
-  isLoading.value = false
 }
 
-function triggerCelebration() {
-  const id = Date.now()
-  showCelebrationList.value.push(id)
-  setTimeout(() => {
-    showCelebrationList.value = showCelebrationList.value.filter(item => item !== id)
-  }, 4000)
-}
-
-function cancelTicket() {
-  if (confirm('هل أنت متأكد من إلغاء تذكرتك؟ سيفقد ترتيبك الحالي.')) {
+function resetBooking() {
+  if (confirm('هل أنت متأكد؟')) {
     myTicket.value = null
   }
 }
 
-/** Computed Metrics */
-const peopleAhead = computed(() => {
-  if (!myTicket.value) return 0
-  return Math.max(0, myTicket.value - currentNumber.value - 1)
+function handleNotificationToggle() {
+  isNotificationsEnabled.value = true
+  showNotificationToast.value = true
+  setTimeout(() => { showNotificationToast.value = false }, 3000)
+}
+
+/** Computed Measurements */
+const peopleAheadCount = computed(() => {
+  const t = myTicket.value
+  if (t === null) return 0
+  return Math.max(0, t - currentNumber.value - 1)
 })
 
-const isMyTurn = computed(() => myTicket.value !== null && myTicket.value <= currentNumber.value)
-const isFinished = computed(() => myTicket.value !== null && myTicket.value < currentNumber.value)
+const isMyTurnActive = computed(() => {
+  const t = myTicket.value
+  return t !== null && t <= currentNumber.value
+})
 
-// Circle progress: starts full and decreases as people are served
-const progressOffset = computed(() => {
-  if (!myTicket.value || isMyTurn.value) return 0
-  // Relative progress logic based on a small window (max 10 people)
-  return Math.max(0, (peopleAhead.value / 10) * 289)
+const isTicketFinished = computed(() => {
+  const t = myTicket.value
+  return t !== null && t < currentNumber.value
+})
+
+const progressVisualOffset = computed(() => {
+  if (myTicket.value === null || isMyTurnActive.value) return 0
+  return Math.max(0, (peopleAheadCount.value / 12) * 289)
+})
+
+/** Initialization */
+onMounted(async () => {
+  // Load initial data
+  const { data } = await supabase.from('queues').select('*').limit(1).maybeSingle()
+  if (data) {
+    queueId.value = data.id
+    currentNumber.value = data.current_number ?? 0
+    lastIssued.value = data.last_issued_number ?? 0
+    
+    // Automatic Booking if scan landed here with no ticket
+    if (myTicket.value === null) {
+      await issueTicket()
+    }
+  }
+
+  // Realtime subscription
+  supabase.channel('queue_updates')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'queues' }, (payload) => {
+      const row = payload.new as any
+      if (queueId.value && row.id === queueId.value) {
+        if (row.current_number > currentNumber.value) play()
+        currentNumber.value = row.current_number ?? 0
+        lastIssued.value = row.last_issued_number ?? 0
+      }
+    })
+    .subscribe()
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-white flex flex-col items-center justify-between px-8 py-14 font-['Inter',sans-serif] selection:bg-emerald-100 overflow-hidden relative" dir="rtl">
     
-    <!-- 1. Poetic Background Blobs (SVG Effects from Reference Images) -->
+    <!-- Background Poetics -->
     <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      <!-- The "Fluid" background shapes -->
       <svg class="absolute -top-1/4 -right-1/4 w-[150%] h-[150%] opacity-20 filter blur-[80px] animate-morph" viewBox="0 0 1000 1000">
         <path d="M784,395Q742,490,695,571Q648,652,551,691Q454,730,344,704Q234,678,168,589Q102,500,147,404Q192,308,284,244Q376,180,488,187Q600,194,713,247Q826,300,784,395Z" fill="url(#grad1)"/>
         <defs>
@@ -108,75 +116,71 @@ const progressOffset = computed(() => {
           </linearGradient>
         </defs>
       </svg>
-      <!-- Smaller accent blob -->
-      <div class="absolute top-[40%] left-[-10%] w-[60%] aspect-square bg-emerald-50 rounded-full blur-[100px] opacity-40"></div>
     </div>
 
-    <!-- 2. Minimalist Header -->
-    <header class="w-full flex flex-col items-center relative z-10 animate-in fade-in slide-in-from-top duration-700">
-      <div class="flex items-center gap-1.5 opacity-60 mb-1">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="text-slate-900"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
-        <span class="text-[0.65rem] font-bold text-slate-900 uppercase tracking-widest">تتبع الدور المباشر</span>
+    <!-- Header Branding -->
+    <header class="w-full flex items-center justify-between relative z-10 animate-in fade-in duration-1000 px-2 opacity-60">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+        <span class="text-[0.65rem] font-black text-slate-900 uppercase tracking-widest">تتبع مباشر</span>
       </div>
+      <div class="text-[0.65rem] font-black text-slate-400 tracking-[0.4em]">DAWRAK</div>
     </header>
 
-    <!-- 3. Central Interactive Ring (Reference Images 1, 2, 3) -->
-    <main class="flex-1 flex flex-col items-center justify-center w-full max-w-lg mb-[10vh]">
-      <div class="relative w-full aspect-square max-w-[360px] flex items-center justify-center">
+    <!-- Main Visual Hub (Circle) -->
+    <main class="flex-1 flex flex-col items-center justify-center w-full max-w-lg mb-[5vh]">
+      <div class="relative w-full aspect-square max-w-[380px] flex items-center justify-center">
+        <!-- Deep Circle Shadow -->
+        <div class="absolute inset-4 shadow-[0_50px_130px_-20px_rgba(0,0,0,0.12),0_0_60px_rgba(16,185,129,0.06)] rounded-full bg-white"></div>
         
-        <!-- The SVG Atmosphere Blobs behind the circle -->
-        <div class="absolute inset-0 z-0 flex items-center justify-center">
-           <div class="w-[110%] h-[110%] bg-emerald-50 rounded-full blur-[60px] opacity-30 animate-pulse"></div>
-        </div>
-
-        <!-- The Circular Container -->
         <div 
-          class="relative z-10 w-full h-full rounded-full bg-white shadow-[0_45px_100px_-25px_rgba(0,0,0,0.06)] flex flex-col items-center justify-center p-10 text-center border border-slate-50 transition-all duration-1000"
-          :class="isMyTurn ? 'border-emerald-500 shadow-[0_0_80px_rgba(16,185,129,0.2)]' : ''"
+          class="relative z-10 w-full h-full rounded-full bg-white flex flex-col items-center justify-center p-12 text-center border-2 border-slate-50 transition-all duration-1000 overflow-hidden"
+          :class="isMyTurnActive ? 'border-emerald-500 bg-emerald-50/10' : ''"
         >
+          <!-- Active Turn Glow -->
+          <div v-if="isMyTurnActive" class="absolute inset-0 rounded-full ring-[28px] ring-emerald-500/10 animate-ping-slow"></div>
           
-          <!-- Circular Progress SVG -->
-          <svg class="absolute inset-0 w-full h-full -rotate-90 transform p-4" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="46" fill="none" class="stroke-slate-50" stroke-width="4"></circle>
+          <!-- Progress Ring -->
+          <svg class="absolute inset-0 w-full h-full -rotate-90 transform p-4" viewBox="0 0 1000 1000">
+            <circle cx="500" cy="500" r="460" fill="none" class="stroke-slate-50" stroke-width="20"></circle>
             <circle 
-              cx="50" cy="50" r="46" fill="none" 
+              cx="500" cy="500" r="460" fill="none" 
               class="transition-all duration-1000 ease-in-out"
-              :class="isMyTurn ? 'stroke-emerald-500' : 'stroke-emerald-600'"
-              stroke-width="8"
+              :class="isMyTurnActive ? 'stroke-emerald-500' : 'stroke-emerald-600'"
+              stroke-width="50"
               stroke-linecap="round"
-              :stroke-dasharray="289"
-              :stroke-dashoffset="isMyTurn ? 0 : progressOffset"
+              :stroke-dasharray="2890"
+              :stroke-dashoffset="isMyTurnActive ? 0 : (progressVisualOffset * 10)"
             ></circle>
           </svg>
 
-          <!-- Content Switching -->
+          <!-- Status Content -->
           <Transition name="fade-scale" mode="out-in">
-            <!-- Idle: Current Serving State -->
-            <div v-if="myTicket === null" key="current" class="flex flex-col items-center">
-              <p class="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">الرقم الحالي</p>
-              <div class="text-[8.5rem] font-black text-slate-900 leading-none tabular-nums drop-shadow-sm">{{ currentNumber }}</div>
-              <p class="text-emerald-700 text-[0.65rem] font-black uppercase tracking-[0.4em] mt-8">— يرجى الانتظار</p>
+            <!-- No Ticket Display -->
+            <div v-if="myTicket === null" key="idle" class="flex flex-col items-center">
+              <p class="text-slate-400 text-[0.65rem] font-bold mb-4 uppercase tracking-[0.2em]">الرقم قيد الخدمة</p>
+              <div class="text-[9.5rem] font-black text-slate-900 leading-none tabular-nums tracking-tighter">{{ currentNumber }}</div>
+              <button @click="issueTicket" class="mt-8 text-emerald-600 font-black text-[0.65rem] uppercase tracking-widest hover:opacity-70 transition-opacity underline underline-offset-8">
+                 طلب تذكرة يدوياً
+              </button>
             </div>
 
-            <!-- Turn Arrival: The Success Message (Image 3) -->
-            <div v-else-if="isMyTurn" key="turn" class="flex flex-col items-center px-6">
-              <div class="absolute inset-0 rounded-full bg-emerald-400/5 animate-ping-slow"></div>
-              <p class="text-slate-400 text-[0.7rem] font-medium mb-4">رقم تذكرتكم هو <span class="text-slate-900 font-black">#{{ myTicket }}</span></p>
-              <h2 class="text-4xl md:text-5xl font-black text-slate-900 leading-[1.1] mb-6">لقد حان<br>دوركم الآن!</h2>
-              <p class="text-emerald-600 text-[0.7rem] font-black uppercase tracking-[0.2em]">تفضلوا.. مرحب بكـم</p>
+            <!-- Your Turn Messaging -->
+            <div v-else-if="isMyTurnActive" key="turn" class="flex flex-col items-center px-6">
+              <p class="text-slate-400 text-[0.7rem] font-bold mb-3 tracking-tighter uppercase opacity-80">تذكرة العميل #{{ myTicket }}</p>
+              <h2 class="text-5xl font-black text-slate-900 leading-[1.1] mb-6">تفضل!<br>حان دورك</h2>
+              <div class="bg-emerald-600/10 text-emerald-600 border border-emerald-600/20 px-6 py-2 rounded-full text-[0.65rem] font-black uppercase tracking-widest shadow-sm">
+                 توجه للمكتب الآن
+              </div>
             </div>
 
-            <!-- Active Queue: Waiting State (Image 1 & 2) -->
+            <!-- In Queue Waiting -->
             <div v-else key="waiting" class="flex flex-col items-center">
-              <p class="text-slate-400 text-[0.7rem] font-medium mb-3">رقم تذكرتكم هو <span class="text-slate-900 font-black">#{{ myTicket }}</span></p>
-              <h2 class="text-4xl md:text-5xl font-black text-slate-900 leading-tight mb-4 select-none">ترتيبكم {{ peopleAhead + 1 }}<br>في القائمة</h2>
-              
-              <div class="mt-2 flex flex-col items-center">
-                <span class="text-slate-400 text-[0.65rem] font-medium uppercase tracking-tight mb-1">وقت الانتظار التقريبي</span>
-                <div class="flex items-center gap-1.5">
-                   <span class="text-2xl font-black text-slate-900 tracking-tighter">≈ {{ peopleAhead * 5 }}</span>
-                   <span class="text-base font-bold text-slate-400 mb-0.5">دقائق</span>
-                </div>
+              <p class="text-slate-400 text-[0.7rem] font-bold mb-4 tracking-tighter opacity-80">رقم تذكرتك #{{ myTicket }}</p>
+              <h2 class="text-5xl font-black text-slate-900 leading-[1.1] mb-6">أنت التالي<br>بعد {{ peopleAheadCount }} أشخاص</h2>
+              <div class="flex flex-col items-center gap-1.5">
+                 <span class="text-slate-400 text-[0.65rem] font-bold uppercase tracking-widest opacity-60">الانتظار المتوقع</span>
+                 <p class="text-2xl font-black text-slate-900 tracking-tighter">≈ {{ peopleAheadCount * 4 }} دقيقة</p>
               </div>
             </div>
           </Transition>
@@ -184,54 +188,56 @@ const progressOffset = computed(() => {
       </div>
     </main>
 
-    <!-- 4. Bottom Performance Actions (Image 1 Style Buttons) -->
-    <div class="w-full max-w-sm flex flex-col items-center gap-4 relative z-10 animate-in slide-in-from-bottom duration-1000">
+    <!-- Bottom Action Controls -->
+    <div class="w-full max-w-sm flex flex-col items-center gap-4 relative z-10 animate-in slide-in-from-bottom duration-1000 px-4">
       
-      <Transition name="button-swap" mode="out-in">
-        <!-- Action: Issue New Ticket -->
-        <div v-if="myTicket === null" class="w-full">
-           <button 
-            @click="getTicket" 
-            :disabled="isLoading"
-            class="w-full py-6 rounded-[1.8rem] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl transition-all shadow-[0_30px_60px_-15px_rgba(5,150,105,0.4)] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-4 relative overflow-hidden group"
+      <!-- Notifications Bar -->
+      <Transition name="slide-up">
+        <div v-if="myTicket !== null" class="w-full">
+          <button 
+            v-if="!isNotificationsEnabled"
+            @click="handleNotificationToggle"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 rounded-[1.6rem] font-black text-sm tracking-tight transition-all active:scale-[0.98] shadow-xl shadow-emerald-200/50 flex items-center justify-center gap-3"
           >
-            <span v-if="isLoading" class="w-7 h-7 border-4 border-white/20 border-t-white rounded-full animate-spin"></span>
-            <span v-else>احصل على رقمك</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            تفعيل تنبيهات الوصول
           </button>
-        </div>
-
-        <!-- Action: Manage Existing Ticket -->
-        <div v-else class="w-full space-y-4">
-           <!-- The "Enable Notifications" Bar (Reference Image 1) -->
-           <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-[1.4rem] font-bold text-sm tracking-tight transition-all active:scale-[0.98] shadow-lg shadow-emerald-200">
-              تفعيل الإشعارات
-           </button>
-           
-           <button 
-            @click="cancelTicket" 
-            class="w-full py-4 rounded-[1.4rem] bg-slate-50 hover:bg-slate-100 text-slate-400 font-bold text-sm tracking-tight border border-slate-100 transition-all active:scale-[0.98]"
-          >
-            {{ isFinished ? 'بدء حجز جديد' : 'إلغاء حجز الدور' }}
-          </button>
+          
+          <div v-else-if="showNotificationToast && isNotificationsEnabled" class="w-full bg-slate-900 text-white py-4 rounded-2xl flex items-center justify-center gap-3 animate-in zoom-in duration-500 shadow-2xl">
+             <span class="text-xs font-black uppercase tracking-[0.2em]">سيتم تنبيهك عند اقتراب دورك</span>
+          </div>
+          
+          <div v-else class="w-full bg-emerald-50 text-emerald-700 py-4 rounded-2xl flex items-center justify-center gap-3 border border-emerald-100/50 text-[0.65rem] font-black uppercase tracking-widest shadow-sm">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+             التنبيهات نشطة حالياً
+          </div>
         </div>
       </Transition>
 
-      <!-- Status Sub-footer -->
-      <div v-if="myTicket === null" class="text-[0.6rem] font-black text-slate-300 uppercase tracking-[0.5em] mt-4 select-none">
-        عدد المنتظرين حالياً: {{ Math.max(0, lastIssued - currentNumber) }}
+      <!-- Manage State Button -->
+      <div v-if="myTicket !== null" class="w-full flex justify-center">
+        <button 
+          @click="resetBooking" 
+          class="px-8 py-3 text-slate-300 hover:text-rose-400 text-[0.6rem] font-black uppercase tracking-[0.5em] transition-colors border border-transparent hover:border-rose-100 rounded-full"
+        >
+          {{ isTicketFinished ? 'طلب دور جديـد' : 'إلغاء حجز الدور' }}
+        </button>
+      </div>
+
+      <!-- Live Counters -->
+      <div v-if="myTicket === null" class="text-[0.6rem] font-black text-slate-300 uppercase tracking-[0.6em] mt-4 opacity-40">
+        {{ currentNumber }} Serving / {{ lastIssued }} Issued
       </div>
     </div>
 
-    <!-- 5. Poetic Overlays (Image 2 Notification & Pop) -->
+    <!-- Celebration Overlays -->
     <TransitionGroup name="celebration-pop">
-      <div 
-        v-for="popId in showCelebrationList" 
-        :key="popId"
-        class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] pointer-events-none"
-      >
-        <div class="relative scale-popup flex flex-col items-center">
-           <div class="text-[14rem] drop-shadow-[0_20px_100px_rgba(16,185,129,0.4)]">🎫</div>
-           <p class="mt-[-2rem] bg-white text-emerald-900 border border-emerald-100 px-8 py-3 rounded-full font-black text-lg shadow-2xl animate-bounce">تم حجز دورك بنجاح!</p>
+      <div v-for="popId in showCelebrationList" :key="popId" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] pointer-events-none">
+        <div class="flex flex-col items-center scale-popup">
+           <div class="text-[13rem] drop-shadow-2xl">🎫</div>
+           <div class="bg-white/95 backdrop-blur-sm border border-emerald-100 px-10 py-4 rounded-full shadow-2xl animate-pop-in">
+              <p class="text-emerald-950 font-black text-xl">تم حجز دورك بنجاح!</p>
+           </div>
         </div>
       </div>
     </TransitionGroup>
@@ -240,60 +246,39 @@ const progressOffset = computed(() => {
 </template>
 
 <style scoped>
-/* High-End Poetic Animations */
 @keyframes morph {
   0%, 100% { d: path("M784,395Q742,490,695,571Q648,652,551,691Q454,730,344,704Q234,678,168,589Q102,500,147,404Q192,308,284,244Q376,180,488,187Q600,194,713,247Q826,300,784,395Z"); }
   50% { d: path("M795,417Q774,534,713,638Q652,742,525,739Q398,736,310,652Q222,568,230,446Q238,324,314,248Q390,172,500,170Q610,168,713,234Q816,300,795,417Z"); }
 }
-
-.animate-morph {
-  animation: morph 20s infinite ease-in-out;
-}
+.animate-morph { animation: morph 20s infinite ease-in-out; }
 
 @keyframes pingSlow {
-  0% { transform: scale(1); opacity: 0.15; }
-  100% { transform: scale(1.4); opacity: 0; }
+  0% { transform: scale(1); opacity: 0.3; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
-.animate-ping-slow {
-  animation: pingSlow 3s infinite cubic-bezier(0, 0, 0.2, 1);
-}
+.animate-ping-slow { animation: pingSlow 3s infinite cubic-bezier(0, 0, 0.2, 1); }
 
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 45px 100px -25px rgba(0,0,0,0.06); }
-  50% { box-shadow: 0 45px 100px -25px rgba(16, 185, 129, 0.15); }
-}
-.animate-gentle-pulse {
-  animation: pulseGlow 3s infinite ease-in-out;
-}
-
-/* Transitions */
-.fade-scale-enter-active, .fade-scale-leave-active {
-  transition: all 0.7s cubic-bezier(0.19, 1, 0.22, 1);
-}
+.fade-scale-enter-active, .fade-scale-leave-active { transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1); }
 .fade-scale-enter-from { opacity: 0; transform: scale(0.9) translateY(10px); }
 .fade-scale-leave-to { opacity: 0; transform: scale(1.1) translateY(-10px); }
 
-.button-swap-enter-active, .button-swap-leave-active {
-  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-}
-.button-swap-enter-from { opacity: 0; transform: translateY(20px); }
-.button-swap-leave-to { opacity: 0; transform: translateY(-20px); }
+.slide-up-enter-active { transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1); }
+.slide-up-enter-from { opacity: 0; transform: translateY(40px); }
 
-.celebration-pop-enter-active {
-  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.celebration-pop-leave-active {
-  transition: all 0.5s ease-in;
-}
-.celebration-pop-enter-from { opacity: 0; transform: translate(-50%, -40%) scale(0.5) rotate(-20deg); }
-.celebration-pop-leave-to { opacity: 0; transform: translate(-50%, -60%) scale(1.5); }
+.celebration-pop-enter-active { transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.celebration-pop-enter-from { opacity: 0; transform: translate(-50%, -40%) scale(0.5); }
+.celebration-pop-leave-active { transition: all 0.8s ease-in; }
+.celebration-pop-leave-to { opacity: 0; transform: translate(-50%, -80%) scale(1.5); }
 
-/* Custom Scrollbar for hidden elements */
-::-webkit-scrollbar { display: none; }
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop-in { animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
 @media (max-width: 480px) {
-  .text-\[8.5rem\], .text-9xl { font-size: 7.5rem; }
-  main { scale: 0.95; margin-top: -2vh; }
-  header { top: 4rem; }
+  .text-\[9.5rem\] { font-size: 7.5rem; }
+  .text-5xl { font-size: 2.8rem; }
+  main { scale: 0.95; margin-top: -3vh; }
 }
 </style>

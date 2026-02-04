@@ -16,6 +16,7 @@ export type Database = {
                     id: number
                     last_issued_number: number | null
                     name: string | null
+                    last_called_at: string | null
                 }
                 Insert: {
                     created_at?: string
@@ -23,6 +24,7 @@ export type Database = {
                     id?: number
                     last_issued_number?: number | null
                     name?: string | null
+                    last_called_at?: string | null
                 }
                 Update: {
                     created_at?: string
@@ -30,8 +32,47 @@ export type Database = {
                     id?: number
                     last_issued_number?: number | null
                     name?: string | null
+                    last_called_at?: string | null
                 }
                 Relationships: []
+            }
+            tickets: {
+                Row: {
+                    id: string
+                    queue_id: number | null
+                    ticket_number: number
+                    status: string
+                    created_at: string
+                    customer_name: string | null
+                    customer_phone: string | null
+                }
+                Insert: {
+                    id?: string
+                    queue_id?: number | null
+                    ticket_number: number
+                    status?: string
+                    created_at?: string
+                    customer_name?: string | null
+                    customer_phone?: string | null
+                }
+                Update: {
+                    id?: string
+                    queue_id?: number | null
+                    ticket_number?: number
+                    status?: string
+                    created_at?: string
+                    customer_name?: string | null
+                    customer_phone?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "tickets_queue_id_fkey"
+                        columns: ["queue_id"]
+                        isOneToOne: false
+                        referencedRelation: "queues"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
         }
         Views: {

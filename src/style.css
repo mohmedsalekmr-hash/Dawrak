@@ -1,16 +1,79 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap');
 
 @theme {
-  --color-dignified-green: #065f46;
+  --color-queue-teal: #14B8A6;
+  --color-queue-emerald: #10B981;
+  --color-queue-green: #22C55E;
   --color-pure-white: #ffffff;
 
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'IBM Plex Sans Arabic', 'Poppins', sans-serif;
 
-  --animate-pulse-slow: pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shine: shine 3s infinite;
+  --animate-pulse-rich: pulse-rich 4s ease-in-out infinite;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-15px) rotate(1deg);
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) rotate(45deg);
+  }
+
+  20%,
+  100% {
+    transform: translateX(200%) rotate(45deg);
+  }
+}
+
+@keyframes pulse-rich {
+
+  0%,
+  100% {
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.15), 0 0 80px rgba(16, 185, 129, 0.08);
+  }
+
+  50% {
+    box-shadow: 0 0 60px rgba(16, 185, 129, 0.25), 0 0 120px rgba(16, 185, 129, 0.15);
+  }
+}
+
+@keyframes pop-up {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05) translateY(-5px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-pop-up {
+  animation: pop-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* App specific aesthetics */
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gradient-to-br from-slate-50 via-emerald-50/20 to-teal-50/30 text-gray-900;
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

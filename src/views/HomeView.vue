@@ -510,7 +510,7 @@ watch(totalServedToday, () => {
                         </div>
 
                         <span class="text-[0.6rem] font-black text-slate-400 uppercase tracking-widest mb-1">{{ t('your_number') }}</span>
-                        <div class="text-7xl font-black text-slate-800 tabular-nums tracking-tighter mb-2">{{ projectedTicket }}</div>
+                        <div class="text-8xl sm:text-9xl font-black text-slate-800 tabular-nums tracking-tighter mb-2">{{ projectedTicket }}</div>
                         <span class="text-[0.6rem] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full">Success</span>
                      </div>
                   </div>
@@ -550,15 +550,15 @@ watch(totalServedToday, () => {
                   </svg>
                </div>
 
-                <div class="flex flex-col items-center justify-center gap-2 sm:gap-4 scale-90 sm:scale-100">
+                <div class="flex flex-col items-center justify-center gap-1 sm:gap-4 scale-[0.95] sm:scale-100">
                   <div class="text-center">
                     <span 
-                      class="text-[0.6rem] sm:text-[0.65rem] font-bold uppercase tracking-[0.3em] mb-0.5 sm:mb-1 block text-slate-400"
+                      class="text-[0.65rem] font-bold uppercase tracking-[0.3em] mb-[-0.5rem] sm:mb-0 block text-slate-400"
                     >
                       {{ t('position') }}
                     </span>
                     <div class="flex items-baseline justify-center">
-                      <span class="text-[3.8rem] sm:text-[4.5rem] font-black text-slate-900 leading-none tracking-tighter drop-shadow-sm">{{ peopleAheadCount + 1 }}</span>
+                      <span class="text-[6rem] sm:text-[7.5rem] font-black text-slate-900 leading-none tracking-tighter drop-shadow-sm">{{ peopleAheadCount + 1 }}</span>
                     </div>
                   </div>
 

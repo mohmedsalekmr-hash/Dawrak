@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;700&family=Poppins:wght@400;700;900&display=swap');
 
 @theme {
   --color-queue-teal: #14B8A6;
@@ -14,26 +14,33 @@
   --animate-pulse-rich: pulse-rich 4s ease-in-out infinite;
 }
 
+.gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
+}
+
 @keyframes float {
 
   0%,
   100% {
-    transform: translateY(0px) rotate(0deg);
+    transform: translate3d(0, 0, 0) rotate(0deg);
   }
 
   50% {
-    transform: translateY(-15px) rotate(1deg);
+    transform: translate3d(0, -15px, 0) rotate(1deg);
   }
 }
 
 @keyframes shine {
   0% {
-    transform: translateX(-100%) rotate(45deg);
+    transform: translate3d(-100%, 0, 0) rotate(45deg);
   }
 
   20%,
   100% {
-    transform: translateX(200%) rotate(45deg);
+    transform: translate3d(200%, 0, 0) rotate(45deg);
   }
 }
 
@@ -41,33 +48,34 @@
 
   0%,
   100% {
-    box-shadow: 0 0 40px rgba(16, 185, 129, 0.15), 0 0 80px rgba(16, 185, 129, 0.08);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
   }
 
   50% {
-    box-shadow: 0 0 60px rgba(16, 185, 129, 0.25), 0 0 120px rgba(16, 185, 129, 0.15);
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
   }
 }
 
 @keyframes pop-up {
   0% {
     opacity: 0;
-    transform: scale(0.5) translateY(20px);
+    transform: scale(0.8) translate3d(0, 20px, 0);
   }
 
   60% {
     opacity: 1;
-    transform: scale(1.05) translateY(-5px);
+    transform: scale(1.02) translate3d(0, -5px, 0);
   }
 
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: scale(1) translate3d(0, 0, 0);
   }
 }
 
 .animate-pop-up {
-  animation: pop-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: pop-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform, opacity;
 }
 
 /* App specific aesthetics */
@@ -76,4 +84,5 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-attachment: fixed;
 }

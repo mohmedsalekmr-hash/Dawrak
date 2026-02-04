@@ -307,13 +307,13 @@ watch(totalServedToday, () => {
     :dir="locale === 'ar' ? 'rtl' : 'ltr'"
   >
     
-    <!-- Grain/Noise Overlay -->
-    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.04] mix-blend-multiply" style="background-image: url('data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E');"></div>
+    <!-- Background Texture Overlay (Lightweight alternative to SVG noise) -->
+    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.015] bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]"></div>
     
     <!-- Premium Accents -->
     <div class="absolute inset-0 pointer-events-none overflow-hidden transform-gpu" aria-hidden="true">
-      <div class="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] bg-emerald-100/40 rounded-full blur-[100px] animate-float-slow will-change-transform"></div>
-      <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-teal-100/30 rounded-full blur-[120px] animate-float-reverse will-change-transform"></div>
+      <div class="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] bg-emerald-100/30 rounded-full blur-3xl animate-float-slow gpu"></div>
+      <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-teal-100/20 rounded-full blur-3xl animate-float-reverse gpu"></div>
     </div>
 
     <!-- Header Brand Pill -->
@@ -457,10 +457,10 @@ watch(totalServedToday, () => {
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
           <!-- Organic Wave Aura (Directly Under the Progress Ring) -->
-          <div class="absolute inset-0 pointer-events-none opacity-70 z-0">
-            <div class="absolute inset-0 bg-emerald-400 blur-[80px] animate-aura-blob-1 will-change-transform opacity-50"></div>
-            <div class="absolute inset-2 bg-teal-400 blur-[90px] animate-aura-blob-2 will-change-transform opacity-40"></div>
-            <div class="absolute inset-[-5%] bg-emerald-200 blur-[120px] animate-aura-blob-3 will-change-transform opacity-30"></div>
+          <div class="absolute inset-0 pointer-events-none opacity-50 z-0">
+            <div class="absolute inset-0 bg-emerald-400 blur-2xl animate-aura-blob-1 gpu opacity-40"></div>
+            <div class="absolute inset-2 bg-teal-400 blur-2xl animate-aura-blob-2 gpu opacity-30"></div>
+            <div class="absolute inset-[-5%] bg-emerald-200 blur-3xl animate-aura-blob-3 gpu opacity-20"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -753,11 +753,11 @@ watch(totalServedToday, () => {
 </template>
 
 <style scoped>
-@keyframes float-slow { 0%, 100% { transform: translate(0,0); } 33% { transform: translate(20px, -20px); } 66% { transform: translate(-10px, 15px); } }
-@keyframes float-reverse { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-30px, 30px); } }
-.animate-float-slow { animation: float-slow 12s ease-in-out infinite; }
-.animate-float-reverse { animation: float-reverse 15s ease-in-out infinite; }
-@keyframes bounce-gentle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes float-slow { 0%, 100% { transform: translate3d(0,0,0); } 33% { transform: translate3d(20px, -20px, 0); } 66% { transform: translate3d(-10px, 15px, 0); } }
+@keyframes float-reverse { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(-30px, 30px, 0); } }
+.animate-float-slow { animation: float-slow 12s ease-in-out infinite; will-change: transform; }
+.animate-float-reverse { animation: float-reverse 15s ease-in-out infinite; will-change: transform; }
+@keyframes bounce-gentle { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0, -8px, 0); } }
 @keyframes draw-circle { from { stroke-dasharray: 0 283; } to { stroke-dasharray: 283 0; } }
 @keyframes scale-in { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes shine { from { left: -100%; } to { left: 100%; } }

@@ -510,8 +510,8 @@ onUnmounted(() => {
     
     <!-- Premium Ambient Background -->
     <div class="fixed inset-0 pointer-events-none">
-       <div class="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-emerald-100/50 rounded-full blur-[100px] mix-blend-multiply animate-float-slow"></div>
-       <div class="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-blue-50/60 rounded-full blur-[100px] mix-blend-multiply animate-float-reverse"></div>
+       <div class="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-emerald-100/30 rounded-full blur-3xl mix-blend-multiply animate-float-slow gpu"></div>
+       <div class="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-blue-50/40 rounded-full blur-3xl mix-blend-multiply animate-float-reverse gpu"></div>
     </div>
     
     <!-- LOGIN VIEW -->

@@ -571,14 +571,11 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- Professional Organic Liquid Aura (Multi-layer morphing blobs) -->
-          <div class="absolute inset-0 pointer-events-none opacity-60 z-0 scale-125">
-             <!-- Deep Layer -->
-             <div class="absolute inset-[-15%] bg-emerald-400/30 blur-[60px] animate-aura-blob-1 transform-gpu"></div>
-             <!-- Mid Layer -->
-             <div class="absolute inset-[-10%] bg-teal-300/20 blur-[50px] animate-aura-blob-2 transform-gpu"></div>
-             <!-- Accent Layer -->
-             <div class="absolute inset-[-20%] bg-cyan-200/15 blur-[80px] animate-aura-blob-3 transform-gpu"></div>
+          <!-- Professional Gooey Liquid Aura (True Organic Morphing) -->
+          <div class="absolute inset-0 pointer-events-none z-0 scale-125 overflow-visible" style="filter: blur(40px) contrast(150%);">
+             <div class="absolute inset-[10%] bg-emerald-400/40 animate-aura-blob-1 transform-gpu"></div>
+             <div class="absolute inset-[15%] bg-teal-300/30 animate-aura-blob-2 transform-gpu [animation-delay:-5s]"></div>
+             <div class="absolute inset-[5%] bg-cyan-200/20 animate-aura-blob-3 transform-gpu [animation-delay:-10s]"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -649,8 +646,8 @@ watch(totalServedToday, () => {
 
                <div class="absolute inset-0 flex items-center justify-center pointer-events-none p-1 sm:p-2">
                   <svg class="w-full h-full -rotate-90 transform transition-all duration-1000 group/progress" viewBox="0 0 100 100">
-                    <!-- Background Ring: Light Emerald as requested -->
-                    <circle cx="50" cy="50" r="46.5" fill="none" class="stroke-emerald-50/80" stroke-width="4.5"></circle>
+                    <!-- Background Ring: Visible Light Emerald (User Request) -->
+                    <circle cx="50" cy="50" r="46.5" fill="none" class="stroke-emerald-100/60" stroke-width="4.5"></circle>
                     
                     <!-- Glow Layer -->
                     <circle 
@@ -906,19 +903,19 @@ watch(totalServedToday, () => {
 /* Shared Aura Animation Core */
 /* Professional Liquid Aura Animation (Organic Morphing) */
 @keyframes aura-morph-1 {
-  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg) scale(1.1); }
-  33% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(-15px, 25px, 0) rotate(120deg) scale(1.3); }
-  66% { border-radius: 50% 50% 30% 70% / 60% 30% 70% 40%; transform: translate3d(30px, -15px, 0) rotate(240deg) scale(1); }
+  0%, 100% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; transform: translate3d(0,0,0) rotate(0deg) scale(1.1); }
+  33% { border-radius: 70% 30% 46% 54% / 30% 29% 71% 70%; transform: translate3d(-20px, 30px, 0) rotate(120deg) scale(1.3); }
+  66% { border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%; transform: translate3d(40px, -20px, 0) rotate(240deg) scale(1.1); }
 }
 
 @keyframes aura-morph-2 {
-  0%, 100% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; transform: translate3d(0,0,0) rotate(360deg) scale(1.2); }
-  50% { border-radius: 80% 20% 50% 50% / 50% 50% 20% 80%; transform: translate3d(20px, -20px, 0) rotate(180deg) scale(0.9); }
+  0%, 100% { border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%; transform: translate3d(0,0,0) rotate(360deg) scale(1.2); }
+  50% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; transform: translate3d(20px, -30px, 0) rotate(180deg) scale(1); }
 }
 
 @keyframes aura-morph-3 {
-  0%, 100% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; transform: translate3d(0,0,0) scale(1); }
-  50% { border-radius: 45% 55% 35% 65% / 55% 45% 65% 35%; transform: translate3d(-20px, 10px, 0) scale(1.4); }
+  0%, 100% { border-radius: 50%; transform: translate3d(0,0,0) scale(1); }
+  50% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; transform: translate3d(-30px, 20px, 0) scale(1.5); }
 }
 
 .animate-aura-blob-1 { animation: aura-morph-1 20s ease-in-out infinite; }

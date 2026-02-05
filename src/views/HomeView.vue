@@ -571,11 +571,14 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- Professional Liquid Aura (Large & Outside the Circle) -->
-          <div class="absolute -inset-[40%] pointer-events-none z-0 flex items-center justify-center overflow-visible opacity-50">
-             <!-- Pure Emerald Organic Blobs -->
-             <div class="absolute w-[80%] h-[80%] bg-emerald-400/30 rounded-full blur-[70px] animate-liquid-aura-1"></div>
-             <div class="absolute w-[70%] h-[70%] bg-emerald-300/20 rounded-full blur-[50px] animate-liquid-aura-2 [animation-delay:-4s]"></div>
+          <!-- TRUE ORGANIC LIQUID AURA (Unclipped & Asymmetric) -->
+          <div class="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
+             <!-- Blob 1: Large Base (Slow Rotation) -->
+             <div class="absolute w-[140%] h-[140%] bg-emerald-500/10 rounded-[40%] blur-[60px] animate-blob-spin-slow"></div>
+             <!-- Blob 2: Moving Shape (Counter Rotation) -->
+             <div class="absolute w-[130%] h-[130%] bg-emerald-400/10 rounded-[45%] blur-[50px] animate-blob-spin-reverse"></div>
+             <!-- Blob 3: Pulse Core -->
+             <div class="absolute w-[100%] h-[100%] bg-emerald-300/10 rounded-full blur-[40px] animate-pulse-slow"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -675,11 +678,11 @@ watch(totalServedToday, () => {
                   </svg>
                </div>
 
-                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000 p-12 sm:p-20">
-                  <div class="text-center w-full flex flex-col items-center justify-center space-y-4 sm:space-y-8">
-                    <!-- Top: Ticket Number Badge (Properly spaced from top) -->
-                    <div class="inline-flex flex-col items-center mb-2">
-                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-500 uppercase tracking-[0.25em] mb-1">
+                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000 p-8">
+                  <div class="flex flex-col items-center justify-center w-full h-full space-y-4 pt-10 sm:pt-14">
+                    <!-- Top: Ticket Number Badge (Pushed Down) -->
+                    <div class="inline-flex flex-col items-center">
+                      <span class="text-[0.7rem] sm:text-[0.8rem] font-bold text-slate-500 uppercase tracking-[0.2em]">
                          {{ t('your_number') }} #{{ String(myTicket).padStart(3, '0') }}
                       </span>
                     </div>
@@ -901,19 +904,27 @@ watch(totalServedToday, () => {
 @keyframes shimmer-text { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
 
 /* Shared Aura Animation Core */
-/* Professional Liquid Aura Animation (Truly Organic) */
-@keyframes liquid-aura-1 {
-  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: scale(1) translate(0, 0) rotate(0deg); }
-  50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; transform: scale(1.2) translate(20px, -20px) rotate(180deg); }
+/* Professional Blob Spin Animation (The "Squircle" fix) */
+@keyframes blob-spin-slow {
+  0% { transform: rotate(0deg) scale(1); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  50% { transform: rotate(180deg) scale(1.1); border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  100% { transform: rotate(360deg) scale(1); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
 }
 
-@keyframes liquid-aura-2 {
-  0%, 100% { border-radius: 40% 60% 74% 26% / 74% 55% 45% 26%; transform: scale(1.1) translate(0, 0) rotate(0deg); }
-  50% { border-radius: 70% 30% 40% 60% / 30% 70% 50% 70%; transform: scale(0.9) translate(-30px, 20px) rotate(-180deg); }
+@keyframes blob-spin-reverse {
+  0% { transform: rotate(360deg) scale(1.1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+  50% { transform: rotate(180deg) scale(0.9); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  100% { transform: rotate(0deg) scale(1.1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
 }
 
-.animate-liquid-aura-1 { animation: liquid-aura-1 25s ease-in-out infinite; }
-.animate-liquid-aura-2 { animation: liquid-aura-2 30s ease-in-out infinite; }
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.05); }
+}
+
+.animate-blob-spin-slow { animation: blob-spin-slow 20s linear infinite; }
+.animate-blob-spin-reverse { animation: blob-spin-reverse 25s linear infinite; }
+.animate-pulse-slow { animation: pulse-slow 8s ease-in-out infinite; }
 
 .animate-aura-blob-1 { animation: aura-morph-1 20s ease-in-out infinite; }
 .animate-aura-blob-2 { animation: aura-morph-2 25s linear infinite; }

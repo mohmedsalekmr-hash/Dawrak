@@ -125,6 +125,20 @@ async function toggleNotifications() {
   }
 }
 
+// Helper for English Ordinals (1st, 2nd, 3rd, etc.)
+function getOrdinal(n: number): string {
+  const pr = new Intl.PluralRules('en-US', { type: 'ordinal' });
+  const suffixes = new Map([
+    ['one',   'st'],
+    ['two',   'nd'],
+    ['few',   'rd'],
+    ['other', 'th'],
+  ]);
+  const rule = pr.select(n);
+  const suffix = suffixes.get(rule) || 'th';
+  return `${n}${suffix}`;
+}
+
 function speak(text: string) {
   if (!isAudioEnabled.value || !('speechSynthesis' in window)) return
   
@@ -554,10 +568,10 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- Organic Wave Aura (Simplified for better mobile performance) -->
-          <div class="absolute inset-0 pointer-events-none opacity-40 z-0">
-            <div class="absolute inset-4 bg-emerald-300/30 blur-xl animate-aura-blob-1 transform-gpu"></div>
-            <div class="absolute inset-8 bg-teal-300/20 blur-xl animate-aura-blob-2 transform-gpu"></div>
+          <!-- Organic Wave Aura (Liquid Background Effect) -->
+          <div class="absolute inset-4 pointer-events-none opacity-50 z-0 scale-125">
+            <div class="absolute inset-0 bg-emerald-400/30 blur-[60px] animate-aura-blob-1 transform-gpu"></div>
+            <div class="absolute inset-8 bg-teal-400/20 blur-[50px] animate-aura-blob-2 transform-gpu"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -614,7 +628,7 @@ watch(totalServedToday, () => {
                         </div>
 
                         <span class="text-[0.7rem] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{{ t('your_number') }}</span>
-                        <div class="text-[6rem] leading-none font-black text-slate-900 tabular-nums tracking-tighter mb-4 drop-shadow-sm">{{ projectedTicket }}</div>
+                        <div class="text-[6rem] leading-none font-black text-slate-900 tabular-nums tracking-tighter mb-4 drop-shadow-sm">{{ String(projectedTicket).padStart(3, '0') }}</div>
                         <span class="text-[0.65rem] font-bold text-emerald-700 uppercase tracking-[0.1em] bg-emerald-100 px-4 py-1.5 rounded-full shadow-sm">{{ t('digital_pass') }}</span>
                      </div>
                   </div>
@@ -626,66 +640,58 @@ watch(totalServedToday, () => {
               class="flex flex-col items-center w-full h-full justify-center relative z-10 animate-scale-in transition-all duration-1000"
             >
 
-               <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg class="w-full h-full -rotate-90 transform transition-all duration-700" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="47.5" fill="none" stroke="#f1f5f9" stroke-width="4"></circle>
+               <div class="absolute inset-0 flex items-center justify-center pointer-events-none p-1 sm:p-2">
+                  <svg class="w-full h-full -rotate-90 transform transition-all duration-1000 group/progress" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="46.5" fill="none" stroke="#f8fafc" stroke-width="4.5"></circle>
                     
+                    <!-- Glow Layer -->
                     <circle 
-                      cx="50" cy="50" r="47.5" 
+                      cx="50" cy="50" r="46.5" 
                       fill="none" 
-                      stroke-width="5" 
+                      stroke-width="7" 
                       stroke-linecap="round"
-                      stroke-dasharray="298.5" 
-                      :stroke-dashoffset="298.5 - (2.985 * queueProgress)"
-                      class="transition-all duration-700 ease-out opacity-40 blur-[5px] animate-progress-pulse"
+                      stroke-dasharray="292.5" 
+                      :stroke-dashoffset="292.5 - (2.925 * queueProgress)"
+                      class="transition-all duration-1000 ease-out opacity-25 blur-[6px] animate-progress-glow"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
                     ></circle>
 
                     <!-- Main Progress Circle -->
                     <circle 
-                      cx="50" cy="50" r="47.5" 
+                      cx="50" cy="50" r="46.5" 
                       fill="none" 
-                      stroke-width="4.5" 
+                      stroke-width="5" 
                       stroke-linecap="round"
-                      stroke-dasharray="298.5" 
-                      :stroke-dashoffset="298.5 - (2.985 * queueProgress)"
-                      class="transition-all duration-1000 ease-out animate-progress-glow"
+                      stroke-dasharray="292.5" 
+                      :stroke-dashoffset="292.5 - (2.925 * queueProgress)"
+                      class="transition-all duration-1000 ease-out animate-progress-glow shadow-inner"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
                     ></circle>
                   </svg>
                </div>
 
-                <div class="flex flex-col items-center justify-center gap-1 sm:gap-4 scale-[0.95] sm:scale-100 relative z-10 transition-transform duration-1000">
-                  <div class="text-center px-4">
-                    <span class="text-[0.75rem] sm:text-[0.85rem] font-bold uppercase tracking-tight mb-1 sm:mb-2 block text-slate-500 max-w-[240px] leading-tight mx-auto">
-                      {{ t('wait_coming') }}
+                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000">
+                  <div class="text-center px-4 space-y-3 sm:space-y-6">
+                    <!-- Top: Ticket Number -->
+                    <span class="text-[0.7rem] sm:text-[0.8rem] font-black text-slate-400 uppercase tracking-[0.25em] block">
+                      {{ t('pass') }} #{{ String(myTicket).padStart(3, '0') }}
                     </span>
-                    <div class="flex items-baseline justify-center">
-                      <span class="text-[6rem] sm:text-[7.5rem] font-black text-slate-900 leading-none tracking-tighter drop-shadow-md">{{ peopleAheadCount + 1 }}</span>
+                    
+                    <!-- Middle: Position Message -->
+                    <div class="flex flex-col items-center justify-center">
+                      <h2 class="text-[1.85rem] sm:text-[2.2rem] font-black text-slate-900 leading-[1.1] tracking-tight max-w-[220px] mb-2 drop-shadow-sm">
+                        {{ peopleAheadCount === 0 ? t('your_turn_step') : t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
+                      </h2>
+                      <span class="text-[0.65rem] sm:text-[0.75rem] font-bold text-emerald-600/80 uppercase tracking-[0.25em] bg-emerald-50/50 px-3 py-1 rounded-lg">
+                        {{ t('wait_coming') }}
+                      </span>
                     </div>
-                  </div>
 
-                  <div class="flex items-center gap-3 sm:gap-4 transition-all duration-700" :class="{ 'opacity-80 scale-90': peopleAheadCount === 0 }">
-                    <div class="flex flex-col items-center px-3 sm:px-4 py-2 bg-white rounded-2xl border border-slate-100 min-w-[75px] sm:min-w-[85px] shadow-sm">
-                      <span 
-                        class="text-[11px] sm:text-xs font-bold uppercase mb-0.5 text-slate-400 tracking-wider"
-                      >
-                        {{ t('ahead') }}
-                      </span>
-                      <span class="text-xl sm:text-2xl font-black text-slate-800 tabular-nums">{{ peopleAheadCount }}</span>
+                    <!-- Bottom: Wait Time -->
+                    <div class="pt-4 sm:pt-8 border-t border-slate-100/50 w-24 mx-auto">
+                      <p class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-400 mb-1 uppercase tracking-widest">{{ t('wait_time') }}</p>
+                      <p class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">≈ {{ estimatedWaitTime }} <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('mins') }}</span></p>
                     </div>
-                    <div class="flex flex-col items-center px-3 sm:px-4 py-2 bg-white rounded-2xl border border-slate-100 min-w-[75px] sm:min-w-[85px] shadow-sm">
-                      <span 
-                        class="text-[11px] sm:text-xs font-bold uppercase mb-0.5 text-slate-400 tracking-wider"
-                      >
-                        {{ t('wait_time') }}
-                      </span>
-                      <span class="text-xl sm:text-2xl font-black text-slate-800 tabular-nums">{{ estimatedWaitTime }}<span class="text-[10px] sm:text-xs ms-1 text-slate-500 font-bold uppercase tracking-tighter">{{ t('mins') }}</span></span>
-                    </div>
-                  </div>
-                  
-                  <div class="px-4 py-1.5 sm:px-5 sm:py-2 bg-emerald-50 text-emerald-600 rounded-full text-xs font-black tracking-widest border border-emerald-100 uppercase mt-2">
-                    {{ t('pass') }} #{{ String(myTicket).padStart(3, '0') }}
                   </div>
                 </div>
             </div>
@@ -880,12 +886,13 @@ watch(totalServedToday, () => {
 
 /* Shared Aura Animation Core */
 @keyframes aura-morph {
-  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg); }
-  50% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(0,-5px,0) rotate(90deg); }
+  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg) scale(1); }
+  33% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(-10px, 10px, 0) rotate(120deg) scale(1.1); }
+  66% { border-radius: 50% 50% 30% 70% / 60% 30% 70% 40%; transform: translate3d(20px, -5px, 0) rotate(240deg) scale(0.9); }
 }
 
-.animate-aura-blob-1 { animation: aura-morph 12s ease-in-out infinite; }
-.animate-aura-blob-2 { animation: aura-morph 16s linear infinite reverse; }
+.animate-aura-blob-1 { animation: aura-morph 15s ease-in-out infinite; }
+.animate-aura-blob-2 { animation: aura-morph 20s linear infinite reverse; }
 
 .animate-float-icon { animation: float-icon 8s ease-in-out infinite; transform-gpu: translate3d(0,0,0); }
 .animate-shimmer-btn { animation: shimmer-btn 1.2s ease-out; }

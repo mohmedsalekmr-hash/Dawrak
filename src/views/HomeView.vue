@@ -556,14 +556,15 @@ watch(totalServedToday, () => {
             <!-- Shared SVG Definitions -->
             <svg width="0" height="0" class="absolute">
               <defs>
-                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#065f46" /> <!-- Darker green -->
-                  <stop offset="100%" stop-color="#34d399" /> <!-- Lighter green -->
+                <linearGradient id="progressGradient" x1="100%" y1="0%" x2="0%" y2="0%">
+                  <stop offset="0%" stop-color="#059669" /> <!-- emerald-600 -->
+                  <stop offset="50%" stop-color="#10b981" /> <!-- emerald-500 -->
+                  <stop offset="100%" stop-color="#34d399" /> <!-- emerald-400 -->
                 </linearGradient>
               </defs>
             </svg>
             <!-- Solid White Inner Core (To prevent blob bleed through text area) -->
-            <div class="absolute inset-1.5 bg-white/95 backdrop-blur-3xl rounded-full shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)] border border-white/50 z-0"></div>
+            <div class="absolute inset-1 bg-white/80 backdrop-blur-2xl rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/60 z-0"></div>
             <!-- REVEAL ANIMATION (3D FLIP CARD) -->
             <div v-if="isIssuing" class="flex flex-col items-center justify-center w-full h-full relative z-20 perspective-1000">
                <div 
@@ -621,11 +622,11 @@ watch(totalServedToday, () => {
                     <circle 
                       cx="50" cy="50" r="47.5" 
                       fill="none" 
-                      stroke-width="4.5" 
+                      stroke-width="5" 
                       stroke-linecap="round"
                       stroke-dasharray="298.5" 
                       :stroke-dashoffset="298.5 - (2.985 * queueProgress)"
-                      class="transition-all duration-700 ease-out opacity-20 blur-[3px]"
+                      class="transition-all duration-700 ease-out opacity-40 blur-[5px] animate-progress-pulse"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
                     ></circle>
 
@@ -633,30 +634,30 @@ watch(totalServedToday, () => {
                     <circle 
                       cx="50" cy="50" r="47.5" 
                       fill="none" 
-                      stroke-width="4" 
+                      stroke-width="4.5" 
                       stroke-linecap="round"
                       stroke-dasharray="298.5" 
                       :stroke-dashoffset="298.5 - (2.985 * queueProgress)"
-                      class="transition-all duration-1000 ease-out"
+                      class="transition-all duration-1000 ease-out animate-progress-glow"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
                     ></circle>
                   </svg>
                </div>
 
                 <div class="flex flex-col items-center justify-center gap-1 sm:gap-4 scale-[0.95] sm:scale-100 relative z-10 transition-transform duration-1000">
-                  <div class="text-center">
-                    <span class="text-[0.65rem] font-black uppercase tracking-[0.3em] mb-[-0.5rem] sm:mb-0 block text-slate-400">
+                  <div class="text-center px-4">
+                    <span class="text-[0.75rem] sm:text-[0.85rem] font-bold uppercase tracking-tight mb-1 sm:mb-2 block text-slate-500 max-w-[240px] leading-tight mx-auto">
                       {{ t('wait_coming') }}
                     </span>
                     <div class="flex items-baseline justify-center">
-                      <span class="text-[6rem] sm:text-[7.5rem] font-black text-slate-900 leading-none tracking-tighter drop-shadow-sm">{{ peopleAheadCount + 1 }}</span>
+                      <span class="text-[6rem] sm:text-[7.5rem] font-black text-slate-900 leading-none tracking-tighter drop-shadow-md">{{ peopleAheadCount + 1 }}</span>
                     </div>
                   </div>
 
                   <div class="flex items-center gap-3 sm:gap-4 transition-all duration-700" :class="{ 'opacity-80 scale-90': peopleAheadCount === 0 }">
                     <div class="flex flex-col items-center px-3 sm:px-4 py-2 bg-white rounded-2xl border border-slate-100 min-w-[75px] sm:min-w-[85px] shadow-sm">
                       <span 
-                        class="text-[9px] sm:text-[10px] font-bold uppercase mb-0.5 text-slate-400 tracking-wider"
+                        class="text-[11px] sm:text-xs font-bold uppercase mb-0.5 text-slate-400 tracking-wider"
                       >
                         {{ t('ahead') }}
                       </span>
@@ -664,7 +665,7 @@ watch(totalServedToday, () => {
                     </div>
                     <div class="flex flex-col items-center px-3 sm:px-4 py-2 bg-white rounded-2xl border border-slate-100 min-w-[75px] sm:min-w-[85px] shadow-sm">
                       <span 
-                        class="text-[9px] sm:text-[10px] font-bold uppercase mb-0.5 text-slate-400 tracking-wider"
+                        class="text-[11px] sm:text-xs font-bold uppercase mb-0.5 text-slate-400 tracking-wider"
                       >
                         {{ t('wait_time') }}
                       </span>
@@ -672,7 +673,7 @@ watch(totalServedToday, () => {
                     </div>
                   </div>
                   
-                  <div class="px-3 py-1 sm:px-4 sm:py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] sm:text-xs font-black tracking-widest border border-emerald-100 uppercase mt-1">
+                  <div class="px-4 py-1.5 sm:px-5 sm:py-2 bg-emerald-50 text-emerald-600 rounded-full text-xs font-black tracking-widest border border-emerald-100 uppercase mt-2">
                     {{ t('pass') }} #{{ String(myTicket).padStart(3, '0') }}
                   </div>
                 </div>
@@ -691,8 +692,8 @@ watch(totalServedToday, () => {
                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                   </div>
                   <div class="text-center">
-                    <h2 class="text-2xl font-black text-slate-800 tracking-tight leading-tight">{{ t('its_your_turn') }}</h2>
-                    <p class="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">{{ t('proceed_to_counter') }}</p>
+                    <h2 class="text-3xl font-black text-slate-900 tracking-tight leading-tight">{{ t('its_your_turn') }}</h2>
+                    <p class="text-base font-bold text-slate-500 mt-2 uppercase tracking-tight">{{ t('proceed_to_counter') }}</p>
                   </div>
                </div>
             </div>
@@ -836,6 +837,10 @@ watch(totalServedToday, () => {
 .animate-bounce-gentle { animation: bounce-gentle 2s ease-in-out infinite; will-change: transform; }
 .animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards; will-change: transform, opacity; }
 .animate-shine { animation: shine 2s infinite; will-change: left; }
+@keyframes progress-pulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.02); } }
+@keyframes progress-glow { 0%, 100% { filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.4)); } 50% { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8)); } }
+.animate-progress-pulse { animation: progress-pulse 3s ease-in-out infinite; transform-origin: center; }
+.animate-progress-glow { animation: progress-glow 3s ease-in-out infinite; }
 
 .perspective-1000 { 
   perspective: 1000px; 

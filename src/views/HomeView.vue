@@ -16,7 +16,7 @@ const lastCalledAt = ref<string | null>(null)
 const myTicket = useLocalStorage<number | null>('dawrak-ticket', null)
 const serviceStartTime = useLocalStorage<number | null>('dawrak-service-start', null)
 const serviceDuration = ref<string | null>(null)
-const isAudioEnabled = ref(false)
+const isAudioEnabled = useLocalStorage('dawrak-audio-enabled', false)
 const showCancelConfirmation = ref(false)
 const showHelpGuide = ref(false)
 const issuanceStage = ref<'idle' | 'fetching' | 'flipping' | 'revealed'>('idle')
@@ -102,14 +102,56 @@ function toggleLanguage() {
   locale.value = locale.value === 'en' ? 'ar' : 'en'
 }
 
-function toggleNotifications() {
+async function toggleNotifications() {
   if (isAudioEnabled.value) {
     isAudioEnabled.value = false
     toast.show(t('audio_disabled'), 'info')
   } else {
+    // Attempt to unlock audio/speech context via user gesture
     isAudioEnabled.value = true
-    toast.show(t('audio_enabled'), 'success')
+    
+    // 1. Request Browser Notification Permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission()
+    }
+    
+    // 2. Play Test Sound
     play()
+    
+    // 3. Test Voice
+    speak(locale.value === 'ar' ? 'تم تفعيل التنبيهات الصوتية' : 'Voice alerts enabled')
+    
+    toast.show(t('audio_enabled'), 'success')
+  }
+}
+
+function speak(text: string) {
+  if (!isAudioEnabled.value || !('speechSynthesis' in window)) return
+  
+  // Cancel any ongoing speech to prevent overlapping
+  window.speechSynthesis.cancel()
+  
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.lang = locale.value === 'ar' ? 'ar-SA' : 'en-US'
+  utterance.rate = 0.95
+  utterance.pitch = 1.0
+  utterance.volume = 1.0
+  
+  window.speechSynthesis.speak(utterance)
+}
+
+function notifyBrowser(title: string, body: string) {
+  if (!isAudioEnabled.value) return
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body,
+        icon: '/vite.svg',
+        silent: false // Browser usually plays default sound, but we play our own 'play()' too
+      })
+    } catch (e) {
+      console.error('Notification Error:', e)
+    }
   }
 }
 
@@ -221,10 +263,22 @@ onMounted(async () => {
                 navigator.vibrate([100, 50, 100])
               }
               
-              // Gorgeous Visual Feedback: Show Toast for someone else's turn
-              if (!isMyTurn) {
+              const ahead = peopleAheadCount.value
+              
+              // 1. Voice Announcement
+              if (isMyTurn) {
+                speak(locale.value === 'ar' ? 'حان دوركم الآن، تفضلوا للمنضدة وشكراً لصبركم' : "It's your turn now, please proceed to the counter. Thank you for your patience.")
+                notifyBrowser(t('its_your_turn'), t('proceed_to_counter'))
+              } else if (ahead !== null && ahead >= 0 && ahead < 5) {
+                const aheadText = locale.value === 'ar' 
+                   ? `بقي ${ahead + 1} أشخاص أمامك، دورك يقترب` 
+                   : `There are ${ahead + 1} people ahead of you. Your turn is approaching.`
+                speak(aheadText)
+                notifyBrowser('Dawrak Update', aheadText)
+              } else if (!isMyTurn) {
                  const msg = t('now_serving_notification').replace('{n}', newVal.toString())
                  toast.show(msg, 'info')
+                 // Only speak general updates if we are very far or just turned it on
               }
             }
         }
@@ -239,14 +293,18 @@ onMounted(async () => {
         if (row.last_called_at !== undefined && row.last_called_at !== lastCalledAt.value) {
            lastCalledAt.value = row.last_called_at
            
-           // If it's my turn, play sound (Recall)
-           if (myTicket.value !== null && currentNumber.value === myTicket.value) {
-              if (isAudioEnabled.value) {
-                play()
-                if ('vibrate' in navigator) navigator.vibrate([100, 50, 100, 50, 100])
-                toast.show(t('attention_recall'), 'info') // Add translation key or generic
-              }
-           }
+            // If it's my turn, play sound (Recall)
+            if (myTicket.value !== null && currentNumber.value === myTicket.value) {
+               if (isAudioEnabled.value) {
+                 play()
+                 if ('vibrate' in navigator) navigator.vibrate([100, 50, 100, 50, 100])
+                 
+                 const recallText = locale.value === 'ar' ? 'نرجو الانتباه، تتم إعادة استدعائكم الآن' : 'Attention! Your number is being recalled.'
+                 speak(recallText)
+                 notifyBrowser(t('attention_recall'), t('proceed_to_counter'))
+                 toast.show(t('attention_recall'), 'info')
+               }
+            }
         }
       }
     })

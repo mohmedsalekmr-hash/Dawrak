@@ -571,11 +571,12 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- Professional Gooey Liquid Aura (True Organic Morphing) -->
-          <div class="absolute inset-0 pointer-events-none z-0 scale-125 overflow-visible" style="filter: blur(40px) contrast(150%);">
-             <div class="absolute inset-[10%] bg-emerald-400/40 animate-aura-blob-1 transform-gpu"></div>
-             <div class="absolute inset-[15%] bg-teal-300/30 animate-aura-blob-2 transform-gpu [animation-delay:-5s]"></div>
-             <div class="absolute inset-[5%] bg-cyan-200/20 animate-aura-blob-3 transform-gpu [animation-delay:-10s]"></div>
+          <!-- High-End Breathing Halo (Soft & Professional) -->
+          <div class="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-visible">
+             <!-- Primary Glow -->
+             <div class="w-[95%] h-[95%] rounded-full bg-emerald-500/10 blur-[50px] animate-breathing-halo"></div>
+             <!-- Secondary Ambient Glow -->
+             <div class="absolute w-[110%] h-[110%] rounded-full bg-emerald-500/5 blur-[80px] animate-breathing-halo [animation-delay:-4s]"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -646,8 +647,8 @@ watch(totalServedToday, () => {
 
                <div class="absolute inset-0 flex items-center justify-center pointer-events-none p-1 sm:p-2">
                   <svg class="w-full h-full -rotate-90 transform transition-all duration-1000 group/progress" viewBox="0 0 100 100">
-                    <!-- Background Ring: Visible Light Emerald (User Request) -->
-                    <circle cx="50" cy="50" r="46.5" fill="none" class="stroke-emerald-100/60" stroke-width="4.5"></circle>
+                    <!-- Background Ring: Ultra-Soft Emerald Hint -->
+                    <circle cx="50" cy="50" r="46.5" fill="none" class="stroke-emerald-100/30" stroke-width="4.5"></circle>
                     
                     <!-- Glow Layer -->
                     <circle 
@@ -675,37 +676,37 @@ watch(totalServedToday, () => {
                   </svg>
                </div>
 
-                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000">
-                  <div class="text-center px-4 space-y-5 sm:space-y-8">
+                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000 p-8 sm:p-12">
+                  <div class="text-center w-full space-y-3 sm:space-y-6">
                     <!-- Top: Ticket Number Badge -->
-                    <div class="inline-flex flex-col items-center">
-                      <span class="text-[0.8rem] sm:text-[0.9rem] font-bold text-slate-800 uppercase tracking-widest mb-1">
+                    <div class="inline-flex flex-col items-center pt-2">
+                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">
                          {{ t('your_number') }} #{{ String(myTicket).padStart(3, '0') }}
                       </span>
                     </div>
                     
-                    <!-- Middle: Position Message (Responsive Font Size) -->
-                    <div class="flex flex-col items-center justify-center px-2">
+                    <!-- Middle: Position Message (Aggressively Responsive) -->
+                    <div class="flex flex-col items-center justify-center px-4">
                       <h2 
-                        class="font-black text-slate-900 leading-[1.05] tracking-tight max-w-[260px] mb-2"
-                        :class="[
-                           (peopleAheadCount + 1).toString().length > 2 ? 'text-[1.8rem]' : 'text-[2.3rem] sm:text-[2.8rem]'
-                        ]"
+                        class="font-black text-slate-900 leading-[1] tracking-tighter"
+                        :style="{ 
+                          fontSize: (peopleAheadCount + 1).toString().length > 2 ? 'clamp(1.2rem, 5vw, 1.8rem)' : 'clamp(1.8rem, 8vw, 2.6rem)' 
+                        }"
                       >
                         {{ peopleAheadCount === 0 ? t('your_turn_step') : t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
                       </h2>
-                      <span class="text-[0.8rem] sm:text-[0.9rem] font-black text-emerald-600 uppercase tracking-[0.25em]">
+                      <span class="text-[0.75rem] sm:text-[0.85rem] font-black text-emerald-500/80 uppercase tracking-[0.3em] mt-2">
                         {{ t('wait_coming') }}
                       </span>
                     </div>
 
                     <!-- Bottom: Wait Time -->
-                    <div class="pt-6 sm:pt-8 transition-all duration-700">
-                      <p class="text-[0.85rem] sm:text-[1rem] font-bold text-slate-900/60 mb-2 uppercase tracking-widest">{{ t('estimated_wait') }}</p>
-                      <div class="flex items-center justify-center gap-2">
-                        <span class="text-2xl text-slate-400 font-bold">≈</span>
-                        <span class="text-4xl sm:text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
-                        <span class="text-lg sm:text-xl text-slate-900/40 font-bold">{{ t('mins') }}</span>
+                    <div class="pt-4 sm:pt-6 transition-all duration-700">
+                      <p class="text-[0.7rem] sm:text-[0.8rem] font-bold text-slate-300 mb-1 uppercase tracking-[0.2em]">{{ t('estimated_wait') }}</p>
+                      <div class="flex items-center justify-center gap-1.5">
+                        <span class="text-xl text-slate-200 font-bold">≈</span>
+                        <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
+                        <span class="text-sm sm:text-base text-slate-400 font-bold">{{ t('mins') }}</span>
                       </div>
                     </div>
                   </div>
@@ -901,22 +902,13 @@ watch(totalServedToday, () => {
 @keyframes shimmer-text { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
 
 /* Shared Aura Animation Core */
-/* Professional Liquid Aura Animation (Organic Morphing) */
-@keyframes aura-morph-1 {
-  0%, 100% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; transform: translate3d(0,0,0) rotate(0deg) scale(1.1); }
-  33% { border-radius: 70% 30% 46% 54% / 30% 29% 71% 70%; transform: translate3d(-20px, 30px, 0) rotate(120deg) scale(1.3); }
-  66% { border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%; transform: translate3d(40px, -20px, 0) rotate(240deg) scale(1.1); }
+/* Professional Breathing Halo Animation */
+@keyframes breathing-halo {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 0.8; }
 }
 
-@keyframes aura-morph-2 {
-  0%, 100% { border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%; transform: translate3d(0,0,0) rotate(360deg) scale(1.2); }
-  50% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; transform: translate3d(20px, -30px, 0) rotate(180deg) scale(1); }
-}
-
-@keyframes aura-morph-3 {
-  0%, 100% { border-radius: 50%; transform: translate3d(0,0,0) scale(1); }
-  50% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; transform: translate3d(-30px, 20px, 0) scale(1.5); }
-}
+.animate-breathing-halo { animation: breathing-halo 6s ease-in-out infinite; }
 
 .animate-aura-blob-1 { animation: aura-morph-1 20s ease-in-out infinite; }
 .animate-aura-blob-2 { animation: aura-morph-2 25s linear infinite; }

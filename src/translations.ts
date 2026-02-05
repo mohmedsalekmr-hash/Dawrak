@@ -112,6 +112,7 @@ export const translations = {
         step_4_desc: "Enable 'Audio Alerts' to ensure you don't miss your turn.",
         wait_coming: "Your turn approaches",
         you_are_n_in_queue: "You are {n} in the queue",
+        estimated_wait: "Estimated Wait",
     },
     ar: {
         welcome: "بكل تقدير، نرحب بكم في",
@@ -223,5 +224,6 @@ export const translations = {
         step_4_desc: "نوصي بتفعيل 'التنبيهات' لضمان راحتكم وعدم فوات دوركم المنتظر.",
         wait_coming: "دوركم يقترب ..",
         you_are_n_in_queue: "أنت الـ {n} في القائمة",
+        estimated_wait: "الانتظار المتوقع",
     }
 }

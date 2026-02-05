@@ -187,13 +187,17 @@ const peopleAheadCount = computed(() => {
 })
 
 const queueProgress = computed(() => {
-  const ticket = myTicket.value
-  if (ticket === null || ticket === 0) return 0
-  if (currentNumber.value >= ticket) return 100
+  if (myTicket.value === null || myTicket.value === 0) return 0
+  if (peopleAheadCount.value === 0) return 100
   
-  // Progress = (current / target) * 100
-  // This makes the circle fill gradually as the turn approach
-  return Math.min(100, Math.max(0, (currentNumber.value / ticket) * 100))
+  // Confidence window logic (last 5 people)
+  const windowSize = 5
+  if (peopleAheadCount.value >= windowSize) return 15 // Stay at 15% to show activity exists
+  
+  // Calculate progress within the last 5 people
+  // 5 people = 15%, 4 people = 32%, ..., 1 person = 83%, 0 group = 100%
+  const progressWithinWindow = ((windowSize - peopleAheadCount.value) / windowSize) * 85
+  return 15 + progressWithinWindow
 })
 
 const isMyTurnActive = computed(() => {
@@ -422,11 +426,11 @@ watch(totalServedToday, () => {
 
     <!-- Header Brand Pill -->
     <header class="w-full relative z-30 px-6 pt-10 pb-3 flex items-center justify-between gap-3 max-w-md mx-auto">
-      <div class="flex-shrink min-w-0 inline-flex items-center bg-white/70 backdrop-blur-2xl rounded-2xl px-5 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.04)] border border-white/50 relative overflow-hidden group/brand">
-        <span class="text-xl font-black tracking-tighter bg-gradient-to-br from-slate-900 via-emerald-700 to-slate-900 bg-clip-text text-transparent animate-shimmer-text bg-[length:200%_auto] relative z-10">Dawrak</span>
+      <div class="flex-shrink min-w-0 inline-flex items-center bg-white/60 backdrop-blur-3xl rounded-2xl px-5 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-white/50 relative overflow-hidden group/brand">
+        <span class="text-xl font-black tracking-tighter bg-gradient-to-br from-slate-900 via-emerald-800 to-slate-900 bg-clip-text text-transparent animate-shimmer-text bg-[length:200%_auto] relative z-10">Dawrak</span>
         
         <!-- Live Bell Indicator -->
-        <div v-if="isAudioEnabled" class="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-emerald-500 rounded-full text-white shadow-lg animate-bounce-gentle scale-75 origin-center z-20">
+        <div v-if="isAudioEnabled" class="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-emerald-600 rounded-full text-white shadow-xl animate-bounce-gentle scale-75 origin-center z-20">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </div>
       </div>
@@ -568,10 +572,11 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- Organic Wave Aura (Liquid Background Effect) -->
-          <div class="absolute inset-4 pointer-events-none opacity-50 z-0 scale-125">
-            <div class="absolute inset-0 bg-emerald-400/30 blur-[60px] animate-aura-blob-1 transform-gpu"></div>
-            <div class="absolute inset-8 bg-teal-400/20 blur-[50px] animate-aura-blob-2 transform-gpu"></div>
+          <!-- Organic Liquid Aura (Multi-layer deep blur) -->
+          <div class="absolute inset-0 pointer-events-none opacity-60 z-0 scale-150">
+            <div class="absolute inset-[-20%] bg-emerald-400/25 blur-[100px] animate-aura-blob-1 transform-gpu"></div>
+            <div class="absolute inset-[-10%] bg-teal-400/20 blur-[80px] animate-aura-blob-2 transform-gpu"></div>
+            <div class="absolute inset-[-30%] bg-cyan-300/15 blur-[120px] animate-aura-blob-1 transform-gpu [animation-delay:-5s]"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -671,26 +676,32 @@ watch(totalServedToday, () => {
                </div>
 
                 <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000">
-                  <div class="text-center px-4 space-y-3 sm:space-y-6">
-                    <!-- Top: Ticket Number -->
-                    <span class="text-[0.7rem] sm:text-[0.8rem] font-black text-slate-400 uppercase tracking-[0.25em] block">
-                      {{ t('pass') }} #{{ String(myTicket).padStart(3, '0') }}
-                    </span>
+                  <div class="text-center px-4 space-y-6 sm:space-y-10">
+                    <!-- Top: Ticket Number Badge -->
+                    <div class="inline-flex flex-col items-center">
+                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-700/60 uppercase tracking-[0.1em] mb-1">
+                         {{ t('your_number') }} #{{ String(myTicket).padStart(3, '0') }}
+                      </span>
+                    </div>
                     
-                    <!-- Middle: Position Message -->
+                    <!-- Middle: Position Message (Dominant) -->
                     <div class="flex flex-col items-center justify-center">
-                      <h2 class="text-[1.85rem] sm:text-[2.2rem] font-black text-slate-900 leading-[1.1] tracking-tight max-w-[220px] mb-2 drop-shadow-sm">
+                      <h2 class="text-[2.4rem] sm:text-[2.8rem] font-black text-slate-900 leading-[1.1] tracking-tight max-w-[300px] mb-2">
                         {{ peopleAheadCount === 0 ? t('your_turn_step') : t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
                       </h2>
-                      <span class="text-[0.65rem] sm:text-[0.75rem] font-bold text-emerald-600/80 uppercase tracking-[0.25em] bg-emerald-50/50 px-3 py-1 rounded-lg">
+                      <span class="text-[0.8rem] sm:text-[0.9rem] font-black text-emerald-600 uppercase tracking-[0.25em]">
                         {{ t('wait_coming') }}
                       </span>
                     </div>
 
                     <!-- Bottom: Wait Time -->
-                    <div class="pt-4 sm:pt-8 border-t border-slate-100/50 w-24 mx-auto">
-                      <p class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-400 mb-1 uppercase tracking-widest">{{ t('wait_time') }}</p>
-                      <p class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">≈ {{ estimatedWaitTime }} <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('mins') }}</span></p>
+                    <div class="pt-8 sm:pt-12 transition-all duration-700">
+                      <p class="text-[0.8rem] sm:text-[0.9rem] font-bold text-slate-700/50 mb-1 uppercase tracking-widest">{{ t('estimated_wait') }}</p>
+                      <p class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums tracking-tighter flex items-center justify-center gap-1.5">
+                        <span class="text-slate-300 font-bold">≈</span>
+                        {{ estimatedWaitTime }} 
+                        <span class="text-base sm:text-lg text-slate-700/60 font-bold">{{ t('mins') }}</span>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -886,13 +897,13 @@ watch(totalServedToday, () => {
 
 /* Shared Aura Animation Core */
 @keyframes aura-morph {
-  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg) scale(1); }
-  33% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(-10px, 10px, 0) rotate(120deg) scale(1.1); }
-  66% { border-radius: 50% 50% 30% 70% / 60% 30% 70% 40%; transform: translate3d(20px, -5px, 0) rotate(240deg) scale(0.9); }
+  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg) scale(1.1); filter: blur(60px); }
+  33% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(-15px, 20px, 0) rotate(120deg) scale(1.3); filter: blur(80px); }
+  66% { border-radius: 50% 50% 30% 70% / 60% 30% 70% 40%; transform: translate3d(25px, -10px, 0) rotate(240deg) scale(1); filter: blur(50px); }
 }
 
-.animate-aura-blob-1 { animation: aura-morph 15s ease-in-out infinite; }
-.animate-aura-blob-2 { animation: aura-morph 20s linear infinite reverse; }
+.animate-aura-blob-1 { animation: aura-morph 18s ease-in-out infinite; }
+.animate-aura-blob-2 { animation: aura-morph 25s linear infinite reverse; }
 
 .animate-float-icon { animation: float-icon 8s ease-in-out infinite; transform-gpu: translate3d(0,0,0); }
 .animate-shimmer-btn { animation: shimmer-btn 1.2s ease-out; }

@@ -113,6 +113,8 @@ export const translations = {
         wait_coming: "Your turn approaches",
         you_are_n_in_queue: "You are {n} in the queue",
         estimated_wait: "Estimated Wait",
+        reassurance_msg: "We are working quickly to serve you. Your patience is truly appreciated.",
+        relax_msg: "Relax, we'll notify you as soon as your turn is near.",
     },
     ar: {
         welcome: "بكل تقدير، نرحب بكم في",
@@ -225,5 +227,7 @@ export const translations = {
         wait_coming: "دوركم يقترب ..",
         you_are_n_in_queue: "أنت الـ {n} في القائمة",
         estimated_wait: "الانتظار المتوقع",
+        reassurance_msg: "نحن نعمل بجد لخدمتكم في أسرع وقت ممكن، نقدر صبركم الجميل.",
+        relax_msg: "استمتع بقهوتك، سنقوم بإرسال إشعار لجوالك فور اقتراب دورك.",
     }
 }

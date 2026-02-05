@@ -717,14 +717,28 @@ watch(totalServedToday, () => {
                       </span>
                     </div>
 
-                    <!-- Bottom: Wait Time -->
-                    <div class="pt-6 sm:pt-10 transition-all duration-700">
-                      <p class="text-[0.7rem] sm:text-[0.8rem] font-bold text-slate-400 mb-2 uppercase tracking-[0.25em]">{{ t('estimated_wait') }}</p>
-                      <div class="flex items-center justify-center gap-2">
-                        <span class="text-2xl text-slate-300 font-bold">≈</span>
-                        <span class="text-4xl sm:text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
-                        <span class="text-sm sm:text-base text-slate-500 font-bold">{{ t('mins') }}</span>
-                      </div>
+                    <!-- Bottom: Wait Time OR Reassurance Message -->
+                    <div class="pt-4 sm:pt-8 transition-all duration-700 max-w-[280px] mx-auto min-h-[100px] flex flex-col items-center justify-center">
+                      <!-- SHOW TIME ONLY IF RANK IS 1, 2, OR 3 -->
+                      <template v-if="peopleAheadCount < 3">
+                        <p class="text-[0.7rem] sm:text-[0.8rem] font-black text-slate-400 mb-2 uppercase tracking-[0.25em]">{{ t('estimated_wait') }}</p>
+                        <div class="flex items-center justify-center gap-2">
+                          <span class="text-2xl text-slate-300 font-bold">≈</span>
+                          <span class="text-4xl sm:text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
+                          <span class="text-sm sm:text-base text-slate-500 font-bold">{{ t('mins') }}</span>
+                        </div>
+                      </template>
+                      
+                      <!-- SHOW REASSURANCE IF RANK IS 4+ -->
+                      <template v-else>
+                        <div class="flex flex-col items-center space-y-3 animate-fade-in px-2">
+                           <div class="w-8 h-[2px] bg-emerald-100 rounded-full"></div>
+                           <p class="text-[0.75rem] sm:text-[0.85rem] font-medium text-slate-500/90 leading-relaxed text-center italic">
+                             "{{ t('reassurance_msg') }}"
+                           </p>
+                           <div class="w-8 h-[2px] bg-emerald-500/10 rounded-full"></div>
+                        </div>
+                      </template>
                     </div>
                   </div>
                 </div>

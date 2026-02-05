@@ -24,6 +24,7 @@ const isLoading = ref(false)
 const isIssuing = ref(false)
 const isServiceFinished = ref(false)
 const isFreshScan = ref(true)
+const isLoadingInitial = ref(true)
 const projectedTicket = ref<number | null>(null)
 const toast = useToast()
 
@@ -51,15 +52,17 @@ async function issueTicket() {
     if (data) {
       projectedTicket.value = data
       
-      // 2. Insert into DB
-      await supabase.from('tickets').insert({
-        queue_id: queueId.value,
-        ticket_number: data,
-        status: 'waiting'
-      })
+        // 2. Insert into DB
+        const { error: insertError } = await supabase.from('tickets').insert({
+          queue_id: queueId.value,
+          ticket_number: data,
+          status: 'waiting'
+        })
 
-      // Set myTicket immediately so progress circle logic can start
-      myTicket.value = data
+        if (insertError) throw insertError
+
+        // Set myTicket ONLY after confirmed DB residence
+        myTicket.value = data
 
       // 3. Wait for minimum 'Processing' time (Reduced to make it feel faster)
       const elapsed = Date.now() - startTime
@@ -189,6 +192,7 @@ async function loadInitialData() {
 
 onMounted(async () => {
   await loadInitialData()
+  isLoadingInitial.value = false
   
   // Realtime Channel
   const channel = supabase.channel('home-realtime-sync')
@@ -316,6 +320,14 @@ watch(totalServedToday, () => {
     :dir="locale === 'ar' ? 'rtl' : 'ltr'"
   >
     
+    <!-- INITIAL BOOT OVERLAY (Prevents state flicker) -->
+    <div v-if="isLoadingInitial" class="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
+       <div class="w-20 h-20 bg-emerald-50 rounded-[2.5rem] flex items-center justify-center animate-pulse">
+          <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+       </div>
+       <div class="text-[0.6rem] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">Initializing System</div>
+    </div>
+    
     <!-- Background Texture Overlay (Pure CSS lightweight alternative) -->
     <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.015] bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:20px_20px]"></div>
     
@@ -364,36 +376,38 @@ watch(totalServedToday, () => {
     <!-- Main View Section -->
     <main class="relative z-20 flex-1 w-full max-w-md mx-auto flex flex-col items-center justify-center px-6">
       
-       <!-- INITIAL LOADING STATE -->
-       <div v-if="isLoading && isFreshScan" class="flex flex-col items-center gap-6 animate-pulse">
-          <div class="w-16 h-16 bg-slate-100 rounded-3xl"></div>
+       <!-- INITIAL LOADING STATE (Wait for auto-issue check) -->
+       <div v-if="isLoading && isFreshScan && myTicket === null" class="flex flex-col items-center gap-6 animate-pulse">
+          <div class="w-16 h-16 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-center">
+             <div class="w-8 h-8 border-2 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+          </div>
           <div class="h-4 w-32 bg-slate-100 rounded-full"></div>
        </div>
 
        <!-- PAUSE OVERLAY -->
        <Transition name="fade-scale">
-         <div v-if="isPaused" class="absolute inset-0 z-[40] flex items-center justify-center p-6 bg-white/80 backdrop-blur-sm">
-            <div class="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-2xl flex flex-col items-center text-center max-w-sm w-full relative overflow-hidden">
-               <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 to-rose-500"></div>
-               
-               <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 text-red-500 animate-pulse relative">
-                  <div class="absolute inset-0 rounded-full border-4 border-red-100 animate-ping opacity-20"></div>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-               </div>
-               
-               <h2 class="text-2xl font-black text-slate-800 mb-3 tracking-tight">{{ t('queue_is_paused') }}</h2>
-               <p class="text-slate-400 text-sm font-medium leading-relaxed max-w-[240px]">
-                 {{ t('queue_paused_friendly') }}
-               </p>
-            </div>
-         </div>
+          <div v-if="isPaused" class="absolute inset-0 z-[40] flex items-center justify-center p-6 bg-white/80 backdrop-blur-sm">
+             <div class="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-2xl flex flex-col items-center text-center max-w-sm w-full relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 to-rose-500"></div>
+                
+                <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 text-red-500 animate-pulse relative">
+                   <div v-if="!isPaused" class="absolute inset-0 rounded-full border-4 border-red-100 animate-ping opacity-20"></div>
+                   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </div>
+                
+                <h2 class="text-2xl font-black text-slate-800 mb-3 tracking-tight">{{ t('queue_is_paused') }}</h2>
+                <p class="text-slate-400 text-sm font-medium leading-relaxed max-w-[240px]">
+                  {{ t('queue_paused_friendly') }}
+                </p>
+             </div>
+          </div>
        </Transition>
 
 
 
       <!-- STATE 1: WELCOME SCREEN (NO CIRCLE) -->
       <Transition name="fade-scale" mode="out-in">
-        <div v-if="myTicket === null && !isIssuing && !isServiceFinished && !isFreshScan" class="w-full flex flex-col items-center" :class="{ 'opacity-20 pointer-events-none scale-95 blur-sm transition-all duration-700': isPaused }">
+        <div v-if="myTicket === null && !isIssuing && !isServiceFinished && !isFreshScan && !isLoading" class="w-full flex flex-col items-center" :class="{ 'opacity-20 pointer-events-none scale-95 blur-sm transition-all duration-700': isPaused }">
           <div class="w-full bg-white rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] border border-slate-50/50 p-10 flex flex-col items-center text-center relative overflow-hidden group">
             
             <div class="absolute inset-0 pointer-events-none opacity-[0.03]">

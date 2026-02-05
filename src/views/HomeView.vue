@@ -191,8 +191,9 @@ const peopleAheadCount = computed(() => {
 const currentSpiritualQuote = computed(() => {
   const quotes = t('spiritual_quotes') as unknown as string[]
   if (!Array.isArray(quotes)) return ""
-  // We use a simple hash of the ticket ID to keep the quote consistent for one session
-  const index = (myTicket.value || 0) % quotes.length
+  // Combined seed: Ticket ID + People Ahead (ensures change as queue moves)
+  const seed = (myTicket.value || 0) + (peopleAheadCount.value || 0)
+  const index = seed % quotes.length
   return quotes[index]
 })
 

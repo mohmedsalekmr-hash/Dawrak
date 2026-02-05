@@ -8,30 +8,42 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      injectRegister: 'auto',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'notification.mp3'],
       manifest: {
-        name: 'Dawrak Queue System',
+        name: 'Dawrak - نظام الدور الذكي',
         short_name: 'Dawrak',
-        description: 'Premium Queue Management System',
-        theme_color: '#ffffff',
+        description: 'نظام إدارة طوابير الانتظار الذكي - تجربة انتظار راقية ومنظمة.',
+        theme_color: '#10B981',
         background_color: '#ffffff',
         display: 'standalone',
+        orientation: 'portrait',
+        dir: 'rtl',
+        lang: 'ar-SA',
         icons: [
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       }

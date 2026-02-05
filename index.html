@@ -7,24 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dawrak - نظام الدور الذكي</title>
 
-  <!-- PWA Manifest & iOS Support -->
-  <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#10B981">
+  <!-- iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Dawrak">
   <link rel="apple-touch-icon" href="/pwa-192x192.png">
-
-  <!-- Service Worker Registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('SW Registered'))
-          .catch(err => console.log('SW Registration Failed', err));
-      });
-    }
-  </script>
 
   <!-- Performance: Preconnect to font domains -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -571,12 +571,11 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- High-End Breathing Halo (Soft & Professional) -->
-          <div class="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-visible">
-             <!-- Primary Glow -->
-             <div class="w-[95%] h-[95%] rounded-full bg-emerald-500/10 blur-[50px] animate-breathing-halo"></div>
-             <!-- Secondary Ambient Glow -->
-             <div class="absolute w-[110%] h-[110%] rounded-full bg-emerald-500/5 blur-[80px] animate-breathing-halo [animation-delay:-4s]"></div>
+          <!-- Professional Liquid Aura (Large & Outside the Circle) -->
+          <div class="absolute -inset-[40%] pointer-events-none z-0 flex items-center justify-center overflow-visible opacity-50">
+             <!-- Pure Emerald Organic Blobs -->
+             <div class="absolute w-[80%] h-[80%] bg-emerald-400/30 rounded-full blur-[70px] animate-liquid-aura-1"></div>
+             <div class="absolute w-[70%] h-[70%] bg-emerald-300/20 rounded-full blur-[50px] animate-liquid-aura-2 [animation-delay:-4s]"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -676,37 +675,37 @@ watch(totalServedToday, () => {
                   </svg>
                </div>
 
-                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000 p-8 sm:p-12">
-                  <div class="text-center w-full space-y-3 sm:space-y-6">
-                    <!-- Top: Ticket Number Badge -->
-                    <div class="inline-flex flex-col items-center pt-2">
-                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">
+                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000 p-12 sm:p-20">
+                  <div class="text-center w-full flex flex-col items-center justify-center space-y-4 sm:space-y-8">
+                    <!-- Top: Ticket Number Badge (Properly spaced from top) -->
+                    <div class="inline-flex flex-col items-center mb-2">
+                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-500 uppercase tracking-[0.25em] mb-1">
                          {{ t('your_number') }} #{{ String(myTicket).padStart(3, '0') }}
                       </span>
                     </div>
                     
-                    <!-- Middle: Position Message (Aggressively Responsive) -->
-                    <div class="flex flex-col items-center justify-center px-4">
+                    <!-- Middle: Position Message -->
+                    <div class="flex flex-col items-center justify-center px-6">
                       <h2 
-                        class="font-black text-slate-900 leading-[1] tracking-tighter"
+                        class="font-black text-slate-900 leading-[1.1] tracking-tighter"
                         :style="{ 
-                          fontSize: (peopleAheadCount + 1).toString().length > 2 ? 'clamp(1.2rem, 5vw, 1.8rem)' : 'clamp(1.8rem, 8vw, 2.6rem)' 
+                          fontSize: (peopleAheadCount + 1).toString().length > 2 ? 'clamp(1.1rem, 6vw, 1.6rem)' : 'clamp(1.6rem, 10vw, 2.4rem)' 
                         }"
                       >
                         {{ peopleAheadCount === 0 ? t('your_turn_step') : t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
                       </h2>
-                      <span class="text-[0.75rem] sm:text-[0.85rem] font-black text-emerald-500/80 uppercase tracking-[0.3em] mt-2">
+                      <span class="text-[0.75rem] sm:text-[0.85rem] font-black text-emerald-600 uppercase tracking-[0.4em] mt-3 opacity-80">
                         {{ t('wait_coming') }}
                       </span>
                     </div>
 
                     <!-- Bottom: Wait Time -->
-                    <div class="pt-4 sm:pt-6 transition-all duration-700">
-                      <p class="text-[0.7rem] sm:text-[0.8rem] font-bold text-slate-300 mb-1 uppercase tracking-[0.2em]">{{ t('estimated_wait') }}</p>
-                      <div class="flex items-center justify-center gap-1.5">
-                        <span class="text-xl text-slate-200 font-bold">≈</span>
-                        <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
-                        <span class="text-sm sm:text-base text-slate-400 font-bold">{{ t('mins') }}</span>
+                    <div class="pt-6 sm:pt-10 transition-all duration-700">
+                      <p class="text-[0.7rem] sm:text-[0.8rem] font-bold text-slate-400 mb-2 uppercase tracking-[0.25em]">{{ t('estimated_wait') }}</p>
+                      <div class="flex items-center justify-center gap-2">
+                        <span class="text-2xl text-slate-300 font-bold">≈</span>
+                        <span class="text-4xl sm:text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
+                        <span class="text-sm sm:text-base text-slate-500 font-bold">{{ t('mins') }}</span>
                       </div>
                     </div>
                   </div>
@@ -902,13 +901,19 @@ watch(totalServedToday, () => {
 @keyframes shimmer-text { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
 
 /* Shared Aura Animation Core */
-/* Professional Breathing Halo Animation */
-@keyframes breathing-halo {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.1); opacity: 0.8; }
+/* Professional Liquid Aura Animation (Truly Organic) */
+@keyframes liquid-aura-1 {
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: scale(1) translate(0, 0) rotate(0deg); }
+  50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; transform: scale(1.2) translate(20px, -20px) rotate(180deg); }
 }
 
-.animate-breathing-halo { animation: breathing-halo 6s ease-in-out infinite; }
+@keyframes liquid-aura-2 {
+  0%, 100% { border-radius: 40% 60% 74% 26% / 74% 55% 45% 26%; transform: scale(1.1) translate(0, 0) rotate(0deg); }
+  50% { border-radius: 70% 30% 40% 60% / 30% 70% 50% 70%; transform: scale(0.9) translate(-30px, 20px) rotate(-180deg); }
+}
+
+.animate-liquid-aura-1 { animation: liquid-aura-1 25s ease-in-out infinite; }
+.animate-liquid-aura-2 { animation: liquid-aura-2 30s ease-in-out infinite; }
 
 .animate-aura-blob-1 { animation: aura-morph-1 20s ease-in-out infinite; }
 .animate-aura-blob-2 { animation: aura-morph-2 25s linear infinite; }

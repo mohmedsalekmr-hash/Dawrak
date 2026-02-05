@@ -111,8 +111,6 @@ export const translations = {
         step_4_title: "4. Stay Alert",
         step_4_desc: "Enable 'Audio Alerts' to ensure you don't miss your turn.",
         wait_coming: "Please wait, your turn is coming.",
-        almost_turn: "Get ready, almost your turn.",
-        you_are_next: "You're next."
     },
     ar: {
         welcome: "أهلاً ومرحباً بكم في",
@@ -223,7 +221,5 @@ export const translations = {
         step_4_title: "4. تفعيل التنبيهات",
         step_4_desc: "نوصي بتفعيل 'التنبيهات الصوتية' لضمان تلقي الإشعارات في وقتها.",
         wait_coming: "نرجو الانتظار، دوركم يقترب.",
-        almost_turn: "استعدوا، حان وقت خدمتكم تقريباً.",
-        you_are_next: "أنتم التالي."
     }
 }

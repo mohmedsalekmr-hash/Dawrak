@@ -66,33 +66,36 @@ function startTimer() {
   }, 1000)
 }
 
-const cancelledTickets = useLocalStorage<number[]>('dawrak-cancelled-tickets', [])
-
+const realWaitingList = ref<any[]>([])
 
 // Translation helper
 const t = (key: keyof typeof translations.en) => {
   return (translations[locale.value] as any)[key] || translations.en[key]
 }
 
-const waitingCount = computed(() => {
-  let count = 0
-  for (let i = currentNumber.value + 1; i <= lastIssued.value; i++) {
-    if (!cancelledTickets.value.includes(i)) count++
-  }
-  return count
-})
+const waitingCount = computed(() => realWaitingList.value.length)
 
-// avgWaitTime is now a computed at line 96
+async function fetchWaitingList() {
+  if (!queueId.value) return
+  try {
+    const { data } = await supabase
+      .from('tickets')
+      .select('*')
+      .eq('queue_id', queueId.value)
+      .eq('status', 'waiting')
+      .order('ticket_number', { ascending: true })
+      .limit(20)
+    
+    if (data) {
+      realWaitingList.value = data
+    }
+  } catch (e) {
+    console.error('Fetch Waiting List Error:', e)
+  }
+}
 
 const waitingList = computed(() => {
-  const list = []
-  for (let i = currentNumber.value + 1; i <= lastIssued.value; i++) {
-    if (!cancelledTickets.value.includes(i)) {
-      list.push(i)
-      if (list.length >= 20) break
-    }
-  }
-  return list
+  return realWaitingList.value.map(t => t.ticket_number)
 })
 
 
@@ -101,91 +104,84 @@ async function fetchStats() {
   if (!queueId.value) return
   
   try {
-    const today = new Date()
+    const now = new Date()
+    const today = new Date(now)
     today.setHours(0, 0, 0, 0)
     const todayISO = today.toISOString()
     
-    // Helper to get count for a date range
-    const getCount = async (start: Date, end: Date = new Date()) => {
-       if (!queueId.value) return 0
-       const { count } = await supabase.from('tickets')
-         .select('*', { count: 'exact', head: true })
-         .eq('queue_id', queueId.value as unknown as number)
-         .gte('created_at', start.toISOString())
-         .lte('created_at', end.toISOString())
-       return count || 0
-    }
-
-    // Daily & Historical Totals
-    const todayCount = await getCount(today)
-    // Removed redundant and incorrect todayServed assignment here
-
     const yesterdayStart = new Date(today)
     yesterdayStart.setDate(yesterdayStart.getDate() - 1)
-    metrics.value.yesterday = await getCount(yesterdayStart, today)
-
+    
     const threeDaysAgo = new Date(today)
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-    metrics.value.last3Days = await getCount(threeDaysAgo)
-
+    
     const sevenDaysAgo = new Date(today)
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    stats.value.thisWeek = await getCount(sevenDaysAgo)
-
-    const nineteenDaysAgo = new Date(today)
-    nineteenDaysAgo.setDate(nineteenDaysAgo.getDate() - 19)
-    // We display 90 on UI, but let's fetch for 90
-    const ninetyDaysAgo = new Date(today)
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
-    metrics.value.last90Days = await getCount(ninetyDaysAgo)
-
+    
     const thirtyDaysAgo = new Date(today)
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    stats.value.last30Days = await getCount(thirtyDaysAgo)
+    
+    const ninetyDaysAgo = new Date(today)
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
 
-    // REAL SERVED COUNT: Accurate today volume (anyone moved out of 'waiting' state)
-    const { count: servedTodayCount } = await supabase.from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('queue_id', queueId.value)
-      .neq('status', 'waiting') // This ensures ALL served/called/serving are counted
-      .gte('created_at', todayISO)
-    metrics.value.todayServed = servedTodayCount || 0
+    const oneHourAgo = new Date(now.getTime() - 3600000)
+    const twoHoursAgo = new Date(now.getTime() - 7200000)
 
-    // TOTAL LIFETIME SERVED
-    const { count: lifetimeServed } = await supabase.from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('queue_id', queueId.value)
-      .neq('status', 'waiting')
-    stats.value.totalServed = lifetimeServed || 0
+    // Parallelize all count requests
+    const [
+      todayCountRes,
+      yesterdayCountRes,
+      threeDaysCountRes,
+      sevenDaysCountRes,
+      thirtyDaysCountRes,
+      ninetyDaysCountRes,
+      servedTodayRes,
+      lifetimeServedRes,
+      lastHourCountRes,
+      prevHourCountRes
+    ] = await Promise.all([
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', todayISO),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayISO),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', threeDaysAgo.toISOString()),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', sevenDaysAgo.toISOString()),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', thirtyDaysAgo.toISOString()),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', ninetyDaysAgo.toISOString()),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).neq('status', 'waiting').gte('created_at', todayISO),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).neq('status', 'waiting'),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', oneHourAgo.toISOString()),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('queue_id', queueId.value).gte('created_at', twoHoursAgo.toISOString()).lt('created_at', oneHourAgo.toISOString())
+    ])
 
+    stats.value.today = todayCountRes.count || 0
+    metrics.value.yesterday = yesterdayCountRes.count || 0
+    metrics.value.last3Days = threeDaysCountRes.count || 0
+    stats.value.thisWeek = sevenDaysCountRes.count || 0
+    stats.value.last30Days = thirtyDaysCountRes.count || 0
+    metrics.value.last90Days = ninetyDaysCountRes.count || 0
+    metrics.value.todayServed = servedTodayRes.count || 0
+    stats.value.totalServed = lifetimeServedRes.count || 0
+    
     // COMPLETION RATE
-    const rate = todayCount ? Math.round((metrics.value.todayServed / todayCount) * 100) : 100
+    const rate = stats.value.today ? Math.round((metrics.value.todayServed / stats.value.today) * 100) : 100
     metrics.value.completionRate = `${rate}%`
 
-    // AVG WAIT logic: Fallback to estimation as updated_at is missing
-    // 4. PREDICTIVE AI: Estimated Closing Time
-    const now = new Date()
+    // PREDICTIVE AI
     if (waitingCount.value > 0) {
-       const totalMinutesLeft = waitingCount.value * 3 // 3 mins per person avg
+       const totalMinutesLeft = waitingCount.value * 3
        const finishDate = new Date(now.getTime() + totalMinutesLeft * 60000)
        metrics.value.expectedFinish = finishDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     } else {
        metrics.value.expectedFinish = 'Ready'
     }
 
-    // 5. TRAFFIC FLUCTUATION: Compare last hour to previous hour
-    const oneHourAgo = new Date(now.getTime() - 3600000)
-    const twoHoursAgo = new Date(now.getTime() - 7200000)
-    
-    const lastHourCount = await getCount(oneHourAgo)
-    const prevHourCount = await getCount(twoHoursAgo, oneHourAgo)
-    
+    // TRAFFIC TREND
+    const lastHourCount = lastHourCountRes.count || 0
+    const prevHourCount = prevHourCountRes.count || 0
     metrics.value.recentFlux = lastHourCount
     if (lastHourCount > prevHourCount) metrics.value.trafficTrend = 'up'
     else if (lastHourCount < prevHourCount) metrics.value.trafficTrend = 'down'
     else metrics.value.trafficTrend = 'steady'
 
-    stats.value.today = todayCount
   } catch (e) {
     console.error('Fetch Stats Error:', e)
   }
@@ -228,13 +224,24 @@ async function nextNumber() {
   if (!queueId.value || isLoading.value) return
   isLoading.value = true
   try {
-    let next = currentNumber.value + 1
-    while(cancelledTickets.value.includes(next) && next <= lastIssued.value) { next++ }
-    if (next > lastIssued.value) {
+    let next;
+    // Get the first item from our real-time waiting list
+    if (realWaitingList.value.length > 0) {
+      next = realWaitingList.value[0].ticket_number
+    } else {
       toast.show(t('no_one_waiting'), 'info')
       isLoading.value = false
       return
     }
+
+    // Mark it as serving in DB
+    const { error: ticketError } = await supabase
+      .from('tickets')
+      .update({ status: 'serving' })
+      .eq('queue_id', queueId.value)
+      .eq('ticket_number', next)
+    
+    if (ticketError) throw ticketError
 
     const { error } = await supabase
       .from('queues')
@@ -322,8 +329,11 @@ async function refetchEverything() {
   isRefetching.value = true
   try {
     await loadInitialData()
-    await fetchStats()
-    await fetchActivityLog()
+    await Promise.all([
+      fetchStats(),
+      fetchActivityLog(),
+      fetchWaitingList()
+    ])
   } finally {
     isRefetching.value = false
   }
@@ -347,19 +357,20 @@ async function recall() {
   }
 }
 
-async function skip() {
-  if (!queueId.value || currentNumber.value === 0) return
+async function skip(ticket: number) {
+  if (!queueId.value || !ticket) return
   
-  if (currentNumber.value > 0) {
-    cancelledTickets.value.push(currentNumber.value)
-    
+  try {
     // Mark as cancelled in DB
     await supabase.from('tickets')
       .update({ status: 'cancelled' })
       .eq('queue_id', queueId.value)
-      .eq('ticket_number', currentNumber.value)
+      .eq('ticket_number', ticket)
       
-    nextNumber()
+    await fetchWaitingList()
+    toast.show(t('no_show'), 'info')
+  } catch (e) {
+    console.error('Skip Error:', e)
   }
 }
 
@@ -399,15 +410,16 @@ async function finishQueue() {
     
     if (error) throw error
     
-    // Locally reset
     currentNumber.value = 0
     lastIssued.value = 0
     isPaused.value = false
     elapsedTime.value = '00:00'
-    cancelledTickets.value = [] // Clear cancelled tickets for the new day
+    realWaitingList.value = []
+    
     if (timerInterval) clearInterval(timerInterval)
     
     showFinishConfirmation.value = false
+    await fetchStats()
     toast.show(t('success_op'), 'success')
   } catch (e) {
     toast.show(t('error_generic'), 'error')
@@ -483,18 +495,15 @@ onMounted(async () => {
       const newTicket = payload.new as any
       if (queueId.value && newTicket.queue_id == queueId.value) {
         lastIssued.value = Math.max(lastIssued.value, newTicket.ticket_number)
-        const logEntry = {
-          id: newTicket.id,
-          ticket: newTicket.ticket_number,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'Waiting'
-        }
-        realActivityLog.value = [logEntry, ...realActivityLog.value].slice(0, 10)
+        fetchWaitingList()
         fetchStats()
       }
     })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, () => {
-      refetchEverything()
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (payload) => {
+      const updated = payload.new as any
+      if (queueId.value && updated.queue_id == queueId.value) {
+        fetchWaitingList()
+      }
     })
     .subscribe()
 })
@@ -508,10 +517,10 @@ onUnmounted(() => {
 <template>
   <div class="min-h-screen bg-[#F8FAFC] font-['Poppins',sans-serif] relative overflow-hidden selection:bg-emerald-500/30" :dir="locale === 'ar' ? 'rtl' : 'ltr'">
     
-    <!-- Premium Ambient Background -->
+    <!-- Premium Ambient Background (Simplified for performance) -->
     <div class="fixed inset-0 pointer-events-none">
-       <div class="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-emerald-100/30 rounded-full blur-3xl mix-blend-multiply animate-float-slow gpu"></div>
-       <div class="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-blue-50/40 rounded-full blur-3xl mix-blend-multiply animate-float-reverse gpu"></div>
+       <div class="absolute top-[-5%] right-[-5%] w-[400px] h-[400px] bg-emerald-100/20 rounded-full blur-2xl transform-gpu animate-float-slow"></div>
+       <div class="absolute bottom-[-5%] left-[-5%] w-[350px] h-[350px] bg-blue-50/30 rounded-full blur-2xl transform-gpu animate-float-reverse"></div>
     </div>
     
     <!-- LOGIN VIEW -->
@@ -616,9 +625,7 @@ onUnmounted(() => {
          </div>
          
          <div class="flex gap-2">
-            <button @click="skip" class="px-4 py-2 bg-white text-slate-400 hover:text-red-500 rounded-xl text-[0.65rem] font-black uppercase tracking-widest border border-slate-100 transition-all flex items-center gap-2 shadow-sm">
-              {{ t('no_show') }}
-            </button>
+            <!-- Global refresh for peace of mind -->
          </div>
       </div>
 
@@ -750,7 +757,7 @@ onUnmounted(() => {
                         <span class="text-[0.65rem] font-bold text-slate-400 uppercase tracking-widest">Waiting</span>
                       </div>
                    </div>
-                   <button @click="cancelledTickets.push(ticket)" class="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                    <button @click="skip(ticket)" class="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                    </button>
                 </div>

@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;700&family=Poppins:wght@400;700;900&display=swap');
 
 @theme {
   --color-queue-teal: #14B8A6;

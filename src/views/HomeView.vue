@@ -144,35 +144,46 @@ async function loadMetrics() {
   today.setHours(0, 0, 0, 0)
   const todayISO = today.toISOString()
 
-  // 1. Total Bookings Today
-  const { count: bookingsCount } = await supabase
-    .from('tickets')
-    .select('*', { count: 'exact', head: true })
-    .eq('queue_id', queueId.value)
-    .gte('created_at', todayISO)
+  // Execute queries in parallel
+  const [bookingsRes, servedRes] = await Promise.all([
+    supabase
+      .from('tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('queue_id', queueId.value)
+      .gte('created_at', todayISO),
+    supabase
+      .from('tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('queue_id', queueId.value)
+      .eq('status', 'called')
+      .gte('created_at', todayISO)
+  ])
   
-  totalBookingsToday.value = bookingsCount || 0
-
-  // 2. Total Served Today
-  const { count: servedCount } = await supabase
-    .from('tickets')
-    .select('*', { count: 'exact', head: true })
-    .eq('queue_id', queueId.value)
-    .eq('status', 'called')
-    .gte('created_at', todayISO)
-
-  totalServedToday.value = servedCount || 0
+  totalBookingsToday.value = bookingsRes.count || 0
+  totalServedToday.value = servedRes.count || 0
 }
 
 async function loadInitialData() {
-  const { data } = await supabase.from('queues').select('*').limit(1).maybeSingle()
-  if (data) {
-    queueId.value = data.id
-    currentNumber.value = data.current_number ?? 0
-    lastIssued.value = data.last_issued_number ?? 0
-    isPaused.value = data.name === 'PAUSED'
-    lastCalledAt.value = data.last_called_at
-    await loadMetrics()
+  isLoading.value = true
+  try {
+    const { data, error } = await supabase.from('queues').select('*').limit(1).maybeSingle()
+    if (error) throw error
+    
+    if (data) {
+      queueId.value = data.id
+      currentNumber.value = data.current_number ?? 0
+      lastIssued.value = data.last_issued_number ?? 0
+      isPaused.value = data.name === 'PAUSED'
+      lastCalledAt.value = data.last_called_at
+      
+      // Load metrics in parallel with other setup if possible, 
+      // but here we wait for it to ensure UI is ready.
+      await loadMetrics()
+    }
+  } catch (e) {
+    console.error('Failed to load initial data:', e)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -211,12 +222,6 @@ onMounted(async () => {
                  const msg = t('now_serving_notification').replace('{n}', newVal.toString())
                  toast.show(msg, 'info')
               }
-            } else if (myTicket.value !== null && newVal === myTicket.value - 1) {
-              // POSITION 1 GENTLE ALERT:
-              // Play a softer notification if they are "Next" (Position 1)
-              // Only if they have enabled notifications
-              play()
-              if ('vibrate' in navigator) navigator.vibrate(50)
             }
         }
         
@@ -307,13 +312,13 @@ watch(totalServedToday, () => {
     :dir="locale === 'ar' ? 'rtl' : 'ltr'"
   >
     
-    <!-- Background Texture Overlay (Lightweight alternative to SVG noise) -->
-    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.015] bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]"></div>
+    <!-- Background Texture Overlay (Pure CSS lightweight alternative) -->
+    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.015] bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:20px_20px]"></div>
     
-    <!-- Premium Accents -->
-    <div class="absolute inset-0 pointer-events-none overflow-hidden transform-gpu" aria-hidden="true">
-      <div class="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] bg-emerald-100/30 rounded-full blur-3xl animate-float-slow gpu"></div>
-      <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-teal-100/20 rounded-full blur-3xl animate-float-reverse gpu"></div>
+    <!-- Premium Accents (Optimized Blur/Size for performance) -->
+    <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+      <div class="absolute top-[-5%] right-[-5%] w-[300px] h-[300px] bg-emerald-100/20 rounded-full blur-2xl animate-float-slow transform-gpu"></div>
+      <div class="absolute bottom-[-5%] left-[-5%] w-[350px] h-[350px] bg-teal-100/15 rounded-full blur-2xl animate-float-reverse transform-gpu"></div>
     </div>
 
     <!-- Header Brand Pill -->
@@ -355,6 +360,12 @@ watch(totalServedToday, () => {
     <!-- Main View Section -->
     <main class="relative z-20 flex-1 w-full max-w-md mx-auto flex flex-col items-center justify-center px-6">
       
+       <!-- INITIAL LOADING STATE -->
+       <div v-if="isLoading && isFreshScan" class="flex flex-col items-center gap-6 animate-pulse">
+          <div class="w-16 h-16 bg-slate-100 rounded-3xl"></div>
+          <div class="h-4 w-32 bg-slate-100 rounded-full"></div>
+       </div>
+
        <!-- PAUSE OVERLAY -->
        <Transition name="fade-scale">
          <div v-if="isPaused" class="absolute inset-0 z-[40] flex items-center justify-center p-6 bg-white/80 backdrop-blur-sm">
@@ -456,11 +467,10 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- Organic Wave Aura (Directly Under the Progress Ring) -->
-          <div class="absolute inset-0 pointer-events-none opacity-50 z-0">
-            <div class="absolute inset-0 bg-emerald-400 blur-2xl animate-aura-blob-1 gpu opacity-40"></div>
-            <div class="absolute inset-2 bg-teal-400 blur-2xl animate-aura-blob-2 gpu opacity-30"></div>
-            <div class="absolute inset-[-5%] bg-emerald-200 blur-3xl animate-aura-blob-3 gpu opacity-20"></div>
+          <!-- Organic Wave Aura (Simplified for better mobile performance) -->
+          <div class="absolute inset-0 pointer-events-none opacity-40 z-0">
+            <div class="absolute inset-4 bg-emerald-300/30 blur-xl animate-aura-blob-1 transform-gpu"></div>
+            <div class="absolute inset-8 bg-teal-300/20 blur-xl animate-aura-blob-2 transform-gpu"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -523,23 +533,15 @@ watch(totalServedToday, () => {
                </div>
             </div>
 
-            <!-- ACTIVE WAITING -->
             <div 
               v-else-if="myTicket !== null && !isMyTurnActive" 
               class="flex flex-col items-center w-full h-full justify-center relative z-10 animate-scale-in transition-all duration-1000"
-              :class="{ 
-                'animate-breath-slow': peopleAheadCount < 3,
-                'scale-[1.03]': peopleAheadCount === 0
-              }"
             >
-               <!-- Turn Halo / Aura (Only for Position 1) -->
-               <div v-if="peopleAheadCount === 0" class="absolute inset-[-10%] bg-emerald-400/20 blur-[60px] rounded-full animate-aura-pulse pointer-events-none z-0"></div>
 
                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg class="w-full h-full -rotate-90 transform transition-all duration-700" viewBox="0 0 100 100" :class="{ 'scale-105': peopleAheadCount === 0 }">
+                  <svg class="w-full h-full -rotate-90 transform transition-all duration-700" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="47.5" fill="none" stroke="#f1f5f9" stroke-width="4"></circle>
                     
-                    <!-- Glow Layer (Intensifies as turn approaches) -->
                     <circle 
                       cx="50" cy="50" r="47.5" 
                       fill="none" 
@@ -547,39 +549,31 @@ watch(totalServedToday, () => {
                       stroke-linecap="round"
                       stroke-dasharray="298.5" 
                       :stroke-dashoffset="298.5 - (2.985 * queueProgress)"
-                      class="transition-all duration-700 ease-out"
-                      :class="peopleAheadCount < 3 ? 'opacity-40 blur-[5px]' : 'opacity-20 blur-[3px]'"
+                      class="transition-all duration-700 ease-out opacity-20 blur-[3px]"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
                     ></circle>
 
-                    <!-- Main Progress Circle with Shimmer -->
+                    <!-- Main Progress Circle -->
                     <circle 
                       cx="50" cy="50" r="47.5" 
                       fill="none" 
-                      :stroke-width="peopleAheadCount === 0 ? 5 : 4" 
+                      stroke-width="4" 
                       stroke-linecap="round"
                       stroke-dasharray="298.5" 
                       :stroke-dashoffset="298.5 - (2.985 * queueProgress)"
-                      class="transition-all duration-1000 ease-out animate-progress-shimmer"
+                      class="transition-all duration-1000 ease-out"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
-                      :style="{ filter: `drop-shadow(0 0 ${peopleAheadCount < 3 ? '5px' : '2px'} rgba(16, 185, 129, 0.4))` }"
                     ></circle>
                   </svg>
                </div>
 
-                <!-- Solid center brightness boost for Position 1 -->
-                <div v-if="peopleAheadCount === 0" class="absolute inset-[5%] bg-white rounded-full shadow-[inset_0_0_40px_rgba(16,185,129,0.1)] z-0"></div>
-
-                <div class="flex flex-col items-center justify-center gap-1 sm:gap-4 scale-[0.95] sm:scale-100 relative z-10 transition-transform duration-1000" :class="{ 'scale-110': peopleAheadCount === 0 }">
+                <div class="flex flex-col items-center justify-center gap-1 sm:gap-4 scale-[0.95] sm:scale-100 relative z-10 transition-transform duration-1000">
                   <div class="text-center">
-                    <span 
-                      class="text-[0.65rem] font-black uppercase tracking-[0.3em] mb-[-0.5rem] sm:mb-0 block transition-colors duration-700"
-                      :class="peopleAheadCount < 3 ? 'text-emerald-500' : 'text-slate-400'"
-                    >
-                      {{ peopleAheadCount === 0 ? t('you_are_next') : (peopleAheadCount < 3 ? t('almost_turn') : t('wait_coming')) }}
+                    <span class="text-[0.65rem] font-black uppercase tracking-[0.3em] mb-[-0.5rem] sm:mb-0 block text-slate-400">
+                      {{ t('wait_coming') }}
                     </span>
                     <div class="flex items-baseline justify-center">
-                      <span class="text-[6rem] sm:text-[7.5rem] font-black text-slate-900 leading-none tracking-tighter drop-shadow-sm transition-all duration-700" :class="{ 'text-emerald-600 scale-105': peopleAheadCount === 0 }">{{ peopleAheadCount + 1 }}</span>
+                      <span class="text-[6rem] sm:text-[7.5rem] font-black text-slate-900 leading-none tracking-tighter drop-shadow-sm">{{ peopleAheadCount + 1 }}</span>
                     </div>
                   </div>
 
@@ -602,7 +596,7 @@ watch(totalServedToday, () => {
                     </div>
                   </div>
                   
-                  <div class="px-3 py-1 sm:px-4 sm:py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] sm:text-xs font-black tracking-widest border border-emerald-100 uppercase mt-1 transition-all duration-700" :class="{ 'bg-emerald-500 text-white border-none shadow-lg shadow-emerald-500/30 scale-110': peopleAheadCount === 0 }">
+                  <div class="px-3 py-1 sm:px-4 sm:py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] sm:text-xs font-black tracking-widest border border-emerald-100 uppercase mt-1">
                     {{ t('pass') }} #{{ String(myTicket).padStart(3, '0') }}
                   </div>
                 </div>
@@ -794,41 +788,19 @@ watch(totalServedToday, () => {
 
 /* Shared Aura Animation Core */
 @keyframes aura-morph {
-  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: rotate(0deg) scale(1); }
-  50% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: rotate(180deg) scale(1.15); }
+  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg); }
+  50% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(0,-5px,0) rotate(90deg); }
 }
 
-.animate-aura-blob-1 { animation: aura-morph 18s ease-in-out infinite; }
-.animate-aura-blob-2 { animation: aura-morph 24s linear infinite reverse; }
-.animate-aura-blob-3 { animation: aura-morph 30s ease-in-out infinite; }
+.animate-aura-blob-1 { animation: aura-morph 12s ease-in-out infinite; }
+.animate-aura-blob-2 { animation: aura-morph 16s linear infinite reverse; }
 
-.animate-float-icon { animation: float-icon 8s ease-in-out infinite; will-change: transform; }
-.animate-shimmer-btn { animation: shimmer-btn 1.5s ease-out; will-change: transform; }
-.animate-icon-pulse { animation: icon-pulse 4s ease-in-out infinite; will-change: transform, filter; }
+.animate-float-icon { animation: float-icon 8s ease-in-out infinite; transform-gpu: translate3d(0,0,0); }
+.animate-shimmer-btn { animation: shimmer-btn 1.2s ease-out; }
+.animate-icon-pulse { animation: icon-pulse 4s ease-in-out infinite; }
 .animate-shimmer-text { animation: shimmer-text 5s linear infinite; }
 .hover\:animate-wiggle:hover { animation: wiggle 0.5s ease-in-out both; }
 @keyframes wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
-
-@keyframes progress-shimmer {
-  0% { opacity: 1; }
-  50% { opacity: 0.8; }
-  100% { opacity: 1; }
-}
-
-@keyframes breath-slow {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.015); }
-}
-
-@keyframes aura-pulse {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.1); }
-}
-
-.animate-breath-slow { animation: breath-slow 4s ease-in-out infinite; }
-.animate-aura-pulse { animation: aura-pulse 3s ease-in-out infinite; }
-
-.animate-progress-shimmer { animation: progress-shimmer 3s ease-in-out infinite; }
 
 .fade-scale-enter-active, .fade-scale-leave-active { transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); will-change: transform, opacity; }
 .fade-scale-enter-from { opacity: 0; transform: scale(0.9); }

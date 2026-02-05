@@ -281,9 +281,13 @@ onMounted(async () => {
     .subscribe()
 
   // IMMEDIATE AUTO-ISSUE (QR SCAN UX):
-  // If first time scanning (fresh session/refresh), always issue if no ticket.
+  // We add a tiny delay to ensure connections are stable before firing the RPC.
   if (myTicket.value === null && !isPaused.value) {
-     issueTicket()
+     setTimeout(() => {
+        if (myTicket.value === null && !isPaused.value) {
+          issueTicket()
+        }
+     }, 500)
   }
   
   isFreshScan.value = false

@@ -486,23 +486,23 @@ onMounted(async () => {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'queues' }, (payload) => {
       const row = payload.new as any
       if (queueId.value && row.id == queueId.value) {
+        const oldLastIssued = lastIssued.value
         currentNumber.value = row.current_number !== undefined ? row.current_number : currentNumber.value
         lastIssued.value = row.last_issued_number !== undefined ? row.last_issued_number : lastIssued.value
         isPaused.value = row.name === 'PAUSED'
+
+        // If a new ticket was issued, refresh the list immediately (Redundant fallback)
+        if (lastIssued.value > oldLastIssued) {
+           fetchWaitingList()
+           fetchStats()
+        }
       }
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (payload) => {
-      const newTicket = payload.new as any
-      if (queueId.value && newTicket.queue_id == queueId.value) {
-        lastIssued.value = Math.max(lastIssued.value, newTicket.ticket_number)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
+      const ticket = (payload.new || payload.old) as any
+      if (queueId.value && ticket.queue_id == queueId.value) {
         fetchWaitingList()
         fetchStats()
-      }
-    })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (payload) => {
-      const updated = payload.new as any
-      if (queueId.value && updated.queue_id == queueId.value) {
-        fetchWaitingList()
       }
     })
     .subscribe()

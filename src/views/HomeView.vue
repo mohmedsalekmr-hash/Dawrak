@@ -195,6 +195,8 @@ const currentSpiritualQuote = computed(() => {
   const index = (myTicket.value || 0) % quotes.length
   return quotes[index]
 })
+
+const queueProgress = computed(() => {
   if (myTicket.value === null || myTicket.value === 0) return 0
   
   // Logic Fix: If it's your turn (active), 100%

@@ -110,7 +110,7 @@ export const translations = {
         step_3_desc: "The bell will ring and your phone will vibrate when it is your turn to proceed.",
         step_4_title: "4. Stay Alert",
         step_4_desc: "Enable 'Audio Alerts' to ensure you don't miss your turn.",
-        wait_coming: "Please wait, your turn is coming.",
+        wait_coming: "Your turn approaches",
     },
     ar: {
         welcome: "بكل تقدير، نرحب بكم في",
@@ -220,6 +220,6 @@ export const translations = {
         step_3_desc: "ستتلقون رنيناً مميزاً واهتزازاً عند حلول دوركم، ننتظركم عند المنضدة.",
         step_4_title: "4. البقاء على اتصال",
         step_4_desc: "نوصي بتفعيل 'التنبيهات' لضمان راحتكم وعدم فوات دوركم المنتظر.",
-        wait_coming: "يسعدنا انتظاركم الموقر.. دوركم يزداد قرباً كل لحظة",
+        wait_coming: "دوركم يقترب ..",
     }
 }

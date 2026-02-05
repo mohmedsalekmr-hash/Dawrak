@@ -128,12 +128,22 @@ async function toggleNotifications() {
 function speak(text: string) {
   if (!isAudioEnabled.value || !('speechSynthesis' in window)) return
   
-  // Cancel any ongoing speech to prevent overlapping
   window.speechSynthesis.cancel()
   
   const utterance = new SpeechSynthesisUtterance(text)
+  const voices = window.speechSynthesis.getVoices()
+  
+  // Try to find a premium/natural sounding voice
+  const preferredLang = locale.value === 'ar' ? 'ar' : 'en'
+  const naturalVoice = voices.find(v => 
+    v.lang.startsWith(preferredLang) && 
+    (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Premium'))
+  ) || voices.find(v => v.lang.startsWith(preferredLang))
+
+  if (naturalVoice) utterance.voice = naturalVoice
+  
   utterance.lang = locale.value === 'ar' ? 'ar-SA' : 'en-US'
-  utterance.rate = 0.95
+  utterance.rate = 0.9
   utterance.pitch = 1.0
   utterance.volume = 1.0
   
@@ -386,22 +396,23 @@ watch(totalServedToday, () => {
        <div class="text-[0.6rem] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">Initializing System</div>
     </div>
     
-    <!-- Background Texture Overlay (Pure CSS lightweight alternative) -->
-    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.015] bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:20px_20px]"></div>
+    <!-- Background Texture Overlay (Grain & Noise) -->
+    <div class="fixed inset-0 pointer-events-none z-[1] opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.01] bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px]"></div>
     
-    <!-- Premium Accents (Optimized Blur/Size for performance) -->
+    <!-- Premium Accents (Glows) -->
     <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-      <div class="absolute top-[-5%] right-[-5%] w-[300px] h-[300px] bg-emerald-100/20 rounded-full blur-2xl animate-float-slow transform-gpu"></div>
-      <div class="absolute bottom-[-5%] left-[-5%] w-[350px] h-[350px] bg-teal-100/15 rounded-full blur-2xl animate-float-reverse transform-gpu"></div>
+      <div class="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-200/20 rounded-full blur-[120px] animate-float-slow transform-gpu"></div>
+      <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-teal-200/15 rounded-full blur-[120px] animate-float-reverse transform-gpu"></div>
     </div>
 
     <!-- Header Brand Pill -->
     <header class="w-full relative z-30 px-6 pt-10 pb-3 flex items-center justify-between gap-3 max-w-md mx-auto">
-      <div class="flex-shrink min-w-0 inline-flex items-center bg-white/90 backdrop-blur-md rounded-2xl px-5 py-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 relative overflow-hidden group/brand">
-        <span class="text-xl font-black tracking-tighter bg-gradient-to-r from-slate-900 via-emerald-600 to-slate-900 bg-clip-text text-transparent animate-shimmer-text bg-[length:200%_auto] relative z-10">Dawrak</span>
+      <div class="flex-shrink min-w-0 inline-flex items-center bg-white/70 backdrop-blur-2xl rounded-2xl px-5 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.04)] border border-white/50 relative overflow-hidden group/brand">
+        <span class="text-xl font-black tracking-tighter bg-gradient-to-br from-slate-900 via-emerald-700 to-slate-900 bg-clip-text text-transparent animate-shimmer-text bg-[length:200%_auto] relative z-10">Dawrak</span>
         
         <!-- Live Bell Indicator -->
-        <div v-if="isAudioEnabled" class="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-teal-500 rounded-full text-white shadow-lg animate-float scale-75 origin-center z-20">
+        <div v-if="isAudioEnabled" class="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-emerald-500 rounded-full text-white shadow-lg animate-bounce-gentle scale-75 origin-center z-20">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </div>
       </div>
@@ -563,8 +574,8 @@ watch(totalServedToday, () => {
                 </linearGradient>
               </defs>
             </svg>
-            <!-- Solid White Inner Core (To prevent blob bleed through text area) -->
-            <div class="absolute inset-1 bg-white/80 backdrop-blur-2xl rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/60 z-0"></div>
+            <!-- Glassmorphic Inner Core -->
+            <div class="absolute inset-2 bg-white/70 backdrop-blur-3xl rounded-full shadow-[inset_0_2px_10px_rgba(255,255,255,0.5),0_20px_40px_rgba(0,0,0,0.05)] border border-white/60 z-0"></div>
             <!-- REVEAL ANIMATION (3D FLIP CARD) -->
             <div v-if="isIssuing" class="flex flex-col items-center justify-center w-full h-full relative z-20 perspective-1000">
                <div 
@@ -592,19 +603,19 @@ watch(totalServedToday, () => {
                   </div>
 
                   <!-- BACK: TICKET REVEALED -->
-                  <div class="absolute inset-0 backface-hidden rotate-y-180 bg-white rounded-3xl shadow-2xl border border-emerald-500 overflow-hidden flex flex-col">
-                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-white"></div>
-                     <div class="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-12 animate-shine pointer-events-none"></div>
-                     <div class="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
+                  <div class="absolute inset-0 backface-hidden rotate-y-180 bg-white rounded-3xl shadow-2xl border-2 border-emerald-500/20 overflow-hidden flex flex-col">
+                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-50/80 to-white"></div>
+                     <div class="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/80 to-transparent skew-x-12 animate-shine pointer-events-none"></div>
+                     <div class="absolute top-0 left-0 w-full h-2 bg-emerald-500 shadow-[0_2px_10px_rgba(16,185,129,0.3)]"></div>
                      
-                     <div class="relative flex-1 flex flex-col items-center justify-center p-6">
-                        <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 mb-6">
-                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg>
+                     <div class="relative flex-1 flex flex-col items-center justify-center p-6 text-center">
+                        <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-200 mb-6 animate-bounce-gentle">
+                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg>
                         </div>
 
-                        <span class="text-[0.6rem] font-black text-slate-400 uppercase tracking-widest mb-1">{{ t('your_number') }}</span>
-                        <div class="text-8xl sm:text-9xl font-black text-slate-800 tabular-nums tracking-tighter mb-2">{{ projectedTicket }}</div>
-                        <span class="text-[0.6rem] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full">Success</span>
+                        <span class="text-[0.7rem] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{{ t('your_number') }}</span>
+                        <div class="text-[6rem] leading-none font-black text-slate-900 tabular-nums tracking-tighter mb-4 drop-shadow-sm">{{ projectedTicket }}</div>
+                        <span class="text-[0.65rem] font-bold text-emerald-700 uppercase tracking-[0.1em] bg-emerald-100 px-4 py-1.5 rounded-full shadow-sm">{{ t('digital_pass') }}</span>
                      </div>
                   </div>
                </div>

@@ -190,13 +190,27 @@ const peopleAheadCount = computed(() => {
 
 const queueProgress = computed(() => {
   if (myTicket.value === null || myTicket.value === 0) return 0
-  if (peopleAheadCount.value === 0) return 100
   
+  // Logic Fix: If it's your turn (active), 100%
+  if (isMyTurnActive.value) return 100
+  
+  const ahead = peopleAheadCount.value
+  
+  // HYBRID LOGIC: Fixed satisfying percentages for the "Final 5"
+  // 1st (0 ahead) -> 95%
+  // 2nd (1 ahead) -> 75% (Middle-ish as requested)
+  // 3rd (2 ahead) -> 55%
+  // 4th (3 ahead) -> 35%
+  // 5th (4 ahead) -> 20%
+  if (ahead < 5) {
+     const fixedMap = [95, 75, 55, 35, 20]
+     return fixedMap[ahead]
+  }
+
+  // Relative logic for larger numbers
   const initial = initialPeopleAhead.value || 1
-  const completed = Math.max(0, initial - peopleAheadCount.value)
-  
-  // Start at 10% for visual feedback, then scale to 100%
-  return Math.min(100, 10 + (completed / initial) * 90)
+  const completed = Math.max(0, initial - ahead)
+  return Math.min(15, 5 + (completed / initial) * 10) // Small movement for early stages
 })
 
 const isMyTurnActive = computed(() => {
@@ -688,14 +702,15 @@ watch(totalServedToday, () => {
                     </div>
                     
                     <!-- Middle: Position Message -->
-                    <div class="flex flex-col items-center justify-center px-6">
+                    <div class="flex flex-col items-center justify-center px-2 sm:px-6">
                       <h2 
-                        class="font-black text-slate-900 leading-[1.1] tracking-tighter"
+                        class="font-black text-slate-900 tracking-tighter"
+                        :class="locale === 'en' ? 'leading-[0.9]' : 'leading-[1.1]'"
                         :style="{ 
-                          fontSize: (peopleAheadCount + 1).toString().length > 2 ? 'clamp(1.1rem, 6vw, 1.6rem)' : 'clamp(1.6rem, 10vw, 2.4rem)' 
+                          fontSize: (peopleAheadCount + 1).toString().length > 2 ? 'clamp(1.1rem, 6vw, 1.6rem)' : 'clamp(1.8rem, 10vw, 2.8rem)' 
                         }"
                       >
-                        {{ peopleAheadCount === 0 ? t('your_turn_step') : t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
+                        {{ t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
                       </h2>
                       <span class="text-[0.75rem] sm:text-[0.85rem] font-black text-emerald-600 uppercase tracking-[0.4em] mt-3 opacity-80">
                         {{ t('wait_coming') }}

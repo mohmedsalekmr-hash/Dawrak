@@ -571,11 +571,14 @@ watch(totalServedToday, () => {
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
         <div v-else class="relative w-full max-w-[min(90vw,400px)] aspect-square flex items-center justify-center" :class="{ 'opacity-20 scale-95 blur-sm transition-all duration-700': isPaused }">
-          <!-- Organic Liquid Aura (Multi-layer deep blur) -->
-          <div class="absolute inset-0 pointer-events-none opacity-60 z-0 scale-150">
-            <div class="absolute inset-[-20%] bg-emerald-400/25 blur-[100px] animate-aura-blob-1 transform-gpu"></div>
-            <div class="absolute inset-[-10%] bg-teal-400/20 blur-[80px] animate-aura-blob-2 transform-gpu"></div>
-            <div class="absolute inset-[-30%] bg-cyan-300/15 blur-[120px] animate-aura-blob-1 transform-gpu [animation-delay:-5s]"></div>
+          <!-- Professional Organic Liquid Aura (Multi-layer morphing blobs) -->
+          <div class="absolute inset-0 pointer-events-none opacity-60 z-0 scale-125">
+             <!-- Deep Layer -->
+             <div class="absolute inset-[-15%] bg-emerald-400/30 blur-[60px] animate-aura-blob-1 transform-gpu"></div>
+             <!-- Mid Layer -->
+             <div class="absolute inset-[-10%] bg-teal-300/20 blur-[50px] animate-aura-blob-2 transform-gpu"></div>
+             <!-- Accent Layer -->
+             <div class="absolute inset-[-20%] bg-cyan-200/15 blur-[80px] animate-aura-blob-3 transform-gpu"></div>
           </div>
           
           <!-- Shared Boundary Container -->
@@ -646,7 +649,8 @@ watch(totalServedToday, () => {
 
                <div class="absolute inset-0 flex items-center justify-center pointer-events-none p-1 sm:p-2">
                   <svg class="w-full h-full -rotate-90 transform transition-all duration-1000 group/progress" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="46.5" fill="none" stroke="#f8fafc" stroke-width="4.5"></circle>
+                    <!-- Background Ring: Light Emerald as requested -->
+                    <circle cx="50" cy="50" r="46.5" fill="none" class="stroke-emerald-50/80" stroke-width="4.5"></circle>
                     
                     <!-- Glow Layer -->
                     <circle 
@@ -656,7 +660,7 @@ watch(totalServedToday, () => {
                       stroke-linecap="round"
                       stroke-dasharray="292.5" 
                       :stroke-dashoffset="292.5 - (2.925 * queueProgress)"
-                      class="transition-all duration-1000 ease-out opacity-25 blur-[6px] animate-progress-glow"
+                      class="transition-all duration-1000 ease-out opacity-20 blur-[5px] animate-progress-glow"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
                     ></circle>
 
@@ -668,24 +672,29 @@ watch(totalServedToday, () => {
                       stroke-linecap="round"
                       stroke-dasharray="292.5" 
                       :stroke-dashoffset="292.5 - (2.925 * queueProgress)"
-                      class="transition-all duration-1000 ease-out animate-progress-glow shadow-inner"
+                      class="transition-all duration-1000 ease-out animate-progress-glow"
                       :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
                     ></circle>
                   </svg>
                </div>
 
                 <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000">
-                  <div class="text-center px-4 space-y-6 sm:space-y-10">
+                  <div class="text-center px-4 space-y-5 sm:space-y-8">
                     <!-- Top: Ticket Number Badge -->
                     <div class="inline-flex flex-col items-center">
-                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-900/60 uppercase tracking-[0.1em] mb-1">
+                      <span class="text-[0.8rem] sm:text-[0.9rem] font-bold text-slate-800 uppercase tracking-widest mb-1">
                          {{ t('your_number') }} #{{ String(myTicket).padStart(3, '0') }}
                       </span>
                     </div>
                     
-                    <!-- Middle: Position Message (Dominant) -->
-                    <div class="flex flex-col items-center justify-center">
-                      <h2 class="text-[2.4rem] sm:text-[2.8rem] font-black text-slate-900 leading-[1.1] tracking-tight max-w-[300px] mb-2">
+                    <!-- Middle: Position Message (Responsive Font Size) -->
+                    <div class="flex flex-col items-center justify-center px-2">
+                      <h2 
+                        class="font-black text-slate-900 leading-[1.05] tracking-tight max-w-[260px] mb-2"
+                        :class="[
+                           (peopleAheadCount + 1).toString().length > 2 ? 'text-[1.8rem]' : 'text-[2.3rem] sm:text-[2.8rem]'
+                        ]"
+                      >
                         {{ peopleAheadCount === 0 ? t('your_turn_step') : t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
                       </h2>
                       <span class="text-[0.8rem] sm:text-[0.9rem] font-black text-emerald-600 uppercase tracking-[0.25em]">
@@ -694,13 +703,13 @@ watch(totalServedToday, () => {
                     </div>
 
                     <!-- Bottom: Wait Time -->
-                    <div class="pt-8 sm:pt-12 transition-all duration-700">
-                      <p class="text-[0.8rem] sm:text-[0.9rem] font-bold text-slate-900/50 mb-1 uppercase tracking-widest">{{ t('estimated_wait') }}</p>
-                      <p class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums tracking-tighter flex items-center justify-center gap-1.5">
-                        <span class="text-slate-400 font-bold">≈</span>
-                        {{ estimatedWaitTime }} 
-                        <span class="text-base sm:text-lg text-slate-900/60 font-bold">{{ t('mins') }}</span>
-                      </p>
+                    <div class="pt-6 sm:pt-8 transition-all duration-700">
+                      <p class="text-[0.85rem] sm:text-[1rem] font-bold text-slate-900/60 mb-2 uppercase tracking-widest">{{ t('estimated_wait') }}</p>
+                      <div class="flex items-center justify-center gap-2">
+                        <span class="text-2xl text-slate-400 font-bold">≈</span>
+                        <span class="text-4xl sm:text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
+                        <span class="text-lg sm:text-xl text-slate-900/40 font-bold">{{ t('mins') }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -895,14 +904,26 @@ watch(totalServedToday, () => {
 @keyframes shimmer-text { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
 
 /* Shared Aura Animation Core */
-@keyframes aura-morph {
-  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg) scale(1.1); filter: blur(60px); }
-  33% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(-15px, 20px, 0) rotate(120deg) scale(1.3); filter: blur(80px); }
-  66% { border-radius: 50% 50% 30% 70% / 60% 30% 70% 40%; transform: translate3d(25px, -10px, 0) rotate(240deg) scale(1); filter: blur(50px); }
+/* Professional Liquid Aura Animation (Organic Morphing) */
+@keyframes aura-morph-1 {
+  0%, 100% { border-radius: 66% 34% 53% 47% / 46% 30% 70% 54%; transform: translate3d(0,0,0) rotate(0deg) scale(1.1); }
+  33% { border-radius: 40% 60% 70% 40% / 50% 60% 30% 60%; transform: translate3d(-15px, 25px, 0) rotate(120deg) scale(1.3); }
+  66% { border-radius: 50% 50% 30% 70% / 60% 30% 70% 40%; transform: translate3d(30px, -15px, 0) rotate(240deg) scale(1); }
 }
 
-.animate-aura-blob-1 { animation: aura-morph 18s ease-in-out infinite; }
-.animate-aura-blob-2 { animation: aura-morph 25s linear infinite reverse; }
+@keyframes aura-morph-2 {
+  0%, 100% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; transform: translate3d(0,0,0) rotate(360deg) scale(1.2); }
+  50% { border-radius: 80% 20% 50% 50% / 50% 50% 20% 80%; transform: translate3d(20px, -20px, 0) rotate(180deg) scale(0.9); }
+}
+
+@keyframes aura-morph-3 {
+  0%, 100% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; transform: translate3d(0,0,0) scale(1); }
+  50% { border-radius: 45% 55% 35% 65% / 55% 45% 65% 35%; transform: translate3d(-20px, 10px, 0) scale(1.4); }
+}
+
+.animate-aura-blob-1 { animation: aura-morph-1 20s ease-in-out infinite; }
+.animate-aura-blob-2 { animation: aura-morph-2 25s linear infinite; }
+.animate-aura-blob-3 { animation: aura-morph-3 15s ease-in-out infinite alternate; }
 
 .animate-float-icon { animation: float-icon 8s ease-in-out infinite; transform-gpu: translate3d(0,0,0); }
 .animate-shimmer-btn { animation: shimmer-btn 1.2s ease-out; }

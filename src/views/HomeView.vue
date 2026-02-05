@@ -14,6 +14,7 @@ const queueId = ref<number | null>(null)
 const isPaused = ref(false)
 const lastCalledAt = ref<string | null>(null)
 const myTicket = useLocalStorage<number | null>('dawrak-ticket', null)
+const initialPeopleAhead = useLocalStorage<number>('dawrak-initial-ahead', 0)
 const serviceStartTime = useLocalStorage<number | null>('dawrak-service-start', null)
 const serviceDuration = ref<string | null>(null)
 const isAudioEnabled = useLocalStorage('dawrak-audio-enabled', false)
@@ -61,8 +62,9 @@ async function issueTicket() {
 
         if (insertError) throw insertError
 
-        // Set myTicket ONLY after confirmed DB residence
+        // Set context ONLY after confirmed DB residence
         myTicket.value = data
+        initialPeopleAhead.value = peopleAheadCount.value
 
       // 3. Wait for minimum 'Processing' time (Reduced to make it feel faster)
       const elapsed = Date.now() - startTime
@@ -190,14 +192,11 @@ const queueProgress = computed(() => {
   if (myTicket.value === null || myTicket.value === 0) return 0
   if (peopleAheadCount.value === 0) return 100
   
-  // Confidence window logic (last 5 people)
-  const windowSize = 5
-  if (peopleAheadCount.value >= windowSize) return 15 // Stay at 15% to show activity exists
+  const initial = initialPeopleAhead.value || 1
+  const completed = Math.max(0, initial - peopleAheadCount.value)
   
-  // Calculate progress within the last 5 people
-  // 5 people = 15%, 4 people = 32%, ..., 1 person = 83%, 0 group = 100%
-  const progressWithinWindow = ((windowSize - peopleAheadCount.value) / windowSize) * 85
-  return 15 + progressWithinWindow
+  // Start at 10% for visual feedback, then scale to 100%
+  return Math.min(100, 10 + (completed / initial) * 90)
 })
 
 const isMyTurnActive = computed(() => {
@@ -679,7 +678,7 @@ watch(totalServedToday, () => {
                   <div class="text-center px-4 space-y-6 sm:space-y-10">
                     <!-- Top: Ticket Number Badge -->
                     <div class="inline-flex flex-col items-center">
-                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-700/60 uppercase tracking-[0.1em] mb-1">
+                      <span class="text-[0.75rem] sm:text-[0.85rem] font-bold text-slate-900/60 uppercase tracking-[0.1em] mb-1">
                          {{ t('your_number') }} #{{ String(myTicket).padStart(3, '0') }}
                       </span>
                     </div>
@@ -696,11 +695,11 @@ watch(totalServedToday, () => {
 
                     <!-- Bottom: Wait Time -->
                     <div class="pt-8 sm:pt-12 transition-all duration-700">
-                      <p class="text-[0.8rem] sm:text-[0.9rem] font-bold text-slate-700/50 mb-1 uppercase tracking-widest">{{ t('estimated_wait') }}</p>
+                      <p class="text-[0.8rem] sm:text-[0.9rem] font-bold text-slate-900/50 mb-1 uppercase tracking-widest">{{ t('estimated_wait') }}</p>
                       <p class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums tracking-tighter flex items-center justify-center gap-1.5">
-                        <span class="text-slate-300 font-bold">≈</span>
+                        <span class="text-slate-400 font-bold">≈</span>
                         {{ estimatedWaitTime }} 
-                        <span class="text-base sm:text-lg text-slate-700/60 font-bold">{{ t('mins') }}</span>
+                        <span class="text-base sm:text-lg text-slate-900/60 font-bold">{{ t('mins') }}</span>
                       </p>
                     </div>
                   </div>

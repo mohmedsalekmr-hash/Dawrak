@@ -188,7 +188,13 @@ const peopleAheadCount = computed(() => {
   return Math.max(0, tNum - currentNumber.value - 1)
 })
 
-const queueProgress = computed(() => {
+const currentSpiritualQuote = computed(() => {
+  const quotes = t('spiritual_quotes') as unknown as string[]
+  if (!Array.isArray(quotes)) return ""
+  // We use a simple hash of the ticket ID to keep the quote consistent for one session
+  const index = (myTicket.value || 0) % quotes.length
+  return quotes[index]
+})
   if (myTicket.value === null || myTicket.value === 0) return 0
   
   // Logic Fix: If it's your turn (active), 100%
@@ -717,10 +723,20 @@ watch(totalServedToday, () => {
                       </span>
                     </div>
 
-                    <!-- Bottom: Wait Time OR Reassurance Message -->
-                    <div class="pt-4 sm:pt-8 transition-all duration-700 max-w-[280px] mx-auto min-h-[100px] flex flex-col items-center justify-center">
-                      <!-- SHOW TIME ONLY IF RANK IS 1, 2, OR 3 -->
-                      <template v-if="peopleAheadCount < 3">
+                    <!-- Bottom: Wait Time OR Spiritual/Reassurance Message -->
+                    <div class="pt-2 sm:pt-6 transition-all duration-700 max-w-[280px] mx-auto min-h-[120px] flex flex-col items-center justify-center">
+                      <!-- CASE 1: RANK 1 (0 behind) -> ALHAMDULILLAH -->
+                      <template v-if="peopleAheadCount === 0">
+                        <div class="flex flex-col items-center animate-fade-in-up">
+                           <span class="text-3xl sm:text-4xl font-black text-emerald-600 tracking-tight">
+                             {{ t('alhamdulillah') }}
+                           </span>
+                           <div class="h-1 w-12 bg-emerald-500/20 rounded-full mt-4"></div>
+                        </div>
+                      </template>
+
+                      <!-- CASE 2: RANK 2 OR 3 (1 or 2 ahead) -> SHOW MINUTES -->
+                      <template v-else-if="peopleAheadCount < 3">
                         <p class="text-[0.7rem] sm:text-[0.8rem] font-black text-slate-400 mb-2 uppercase tracking-[0.25em]">{{ t('estimated_wait') }}</p>
                         <div class="flex items-center justify-center gap-2">
                           <span class="text-2xl text-slate-300 font-bold">≈</span>
@@ -729,14 +745,14 @@ watch(totalServedToday, () => {
                         </div>
                       </template>
                       
-                      <!-- SHOW REASSURANCE IF RANK IS 4+ -->
+                      <!-- CASE 3: RANK 4+ -> SHOW SPIRITUAL QUOTES -->
                       <template v-else>
-                        <div class="flex flex-col items-center space-y-3 animate-fade-in px-2">
-                           <div class="w-8 h-[2px] bg-emerald-100 rounded-full"></div>
-                           <p class="text-[0.75rem] sm:text-[0.85rem] font-medium text-slate-500/90 leading-relaxed text-center italic">
-                             "{{ t('reassurance_msg') }}"
+                        <div class="flex flex-col items-center space-y-4 animate-fade-in px-4">
+                           <div class="w-8 h-[1.5px] bg-emerald-500/10 rounded-full"></div>
+                           <p class="text-[0.9rem] sm:text-[1.1rem] font-bold text-slate-700/80 leading-snug text-center italic font-serif">
+                             "{{ currentSpiritualQuote }}"
                            </p>
-                           <div class="w-8 h-[2px] bg-emerald-500/10 rounded-full"></div>
+                           <div class="w-8 h-[1.5px] bg-emerald-500/20 rounded-full"></div>
                         </div>
                       </template>
                     </div>

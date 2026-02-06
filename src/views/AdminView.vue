@@ -66,6 +66,15 @@ function startTimer() {
   }, 1000)
 }
 
+// Debounce helper for refetching
+let statsTimeout: any = null
+function fetchStatsDebounced() {
+  if (statsTimeout) clearTimeout(statsTimeout)
+  statsTimeout = setTimeout(() => {
+    fetchStats()
+  }, 1500) // 1.5s debounce to group multiple updates
+}
+
 const realWaitingList = ref<any[]>([])
 
 // Translation helper
@@ -269,7 +278,7 @@ async function nextNumber() {
     }
 
     startTimer()
-    fetchStats() // Update volume instantly
+    fetchStatsDebounced() // Optimized
   } catch (e) {
     toast.show(t('error_generic'), 'error')
   } finally {
@@ -292,7 +301,7 @@ async function finishService() {
     isTicketServing.value = false
     
     // 3. Update stats
-    fetchStats()
+    fetchStatsDebounced()
     toast.show(t('success_op'), 'success')
   } catch (e) {
     toast.show(t('error_generic'), 'error')
@@ -419,7 +428,7 @@ async function finishQueue() {
     if (timerInterval) clearInterval(timerInterval)
     
     showFinishConfirmation.value = false
-    await fetchStats()
+    fetchStatsDebounced()
     toast.show(t('success_op'), 'success')
   } catch (e) {
     toast.show(t('error_generic'), 'error')
@@ -502,7 +511,7 @@ onMounted(async () => {
       const ticket = (payload.new || payload.old) as any
       if (queueId.value && ticket.queue_id == queueId.value) {
         fetchWaitingList()
-        fetchStats()
+        fetchStatsDebounced()
       }
     })
     .subscribe()

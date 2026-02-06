@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { supabase } from '../supabase'
 import { useLocalStorage } from '@vueuse/core'
 import { useSound } from '@vueuse/sound'
@@ -16,18 +16,24 @@ const lastCalledAt = ref<string | null>(null)
 const myTicket = useLocalStorage<number | null>('dawrak-ticket', null)
 const initialPeopleAhead = useLocalStorage<number>('dawrak-initial-ahead', 0)
 const serviceStartTime = useLocalStorage<number | null>('dawrak-service-start', null)
-const serviceDuration = ref<string | null>(null)
+const serviceDuration = useLocalStorage<string | null>('dawrak-service-duration', null)
 const isAudioEnabled = useLocalStorage('dawrak-audio-enabled', false)
 const showCancelConfirmation = ref(false)
 const showHelpGuide = ref(false)
 const issuanceStage = ref<'idle' | 'fetching' | 'flipping' | 'revealed'>('idle')
 const isLoading = ref(false)
 const isIssuing = ref(false)
-const isServiceFinished = ref(false)
+const isServiceFinished = useLocalStorage('dawrak-service-finished', false)
 const isFreshScan = ref(true)
 const isLoadingInitial = ref(true)
 const projectedTicket = ref<number | null>(null)
 const toast = useToast()
+
+/** PWA Installation Logic */
+const deferredPrompt = ref<any>(null)
+const isIOS = ref(false)
+const showPWAInstallPrompt = useLocalStorage('dawrak-show-pwa-prompt', true)
+const isAppInstallable = ref(false)
 
 // Translation helper
 const t = (key: keyof typeof translations.en) => {
@@ -68,7 +74,7 @@ async function issueTicket() {
 
       // 3. Wait for minimum 'Processing' time (Reduced to make it feel faster)
       const elapsed = Date.now() - startTime
-      const waitTime = Math.max(0, 800 - elapsed)
+      const waitTime = Math.max(0, 600 - elapsed)
       await new Promise(resolve => setTimeout(resolve, waitTime))
 
       // 4. Trigger Flip
@@ -79,7 +85,7 @@ async function issueTicket() {
       issuanceStage.value = 'revealed'
       
       // 6. Hold to let them admire the card (Reduced for snappier UX)
-      await new Promise(resolve => setTimeout(resolve, 1200))
+      await new Promise(resolve => setTimeout(resolve, 1000))
     }
   } catch (e) {
     console.error('Issue Ticket Error:', e)
@@ -100,9 +106,6 @@ function cancelBooking() {
   isServiceFinished.value = false
 }
 
-function toggleLanguage() {
-  locale.value = locale.value === 'en' ? 'ar' : 'en'
-}
 
 async function toggleNotifications() {
   if (isAudioEnabled.value) {
@@ -127,19 +130,6 @@ async function toggleNotifications() {
   }
 }
 
-// Helper for English Ordinals (1st, 2nd, 3rd, etc.)
-function getOrdinal(n: number): string {
-  const pr = new Intl.PluralRules('en-US', { type: 'ordinal' });
-  const suffixes = new Map([
-    ['one',   'st'],
-    ['two',   'nd'],
-    ['few',   'rd'],
-    ['other', 'th'],
-  ]);
-  const rule = pr.select(n);
-  const suffix = suffixes.get(rule) || 'th';
-  return `${n}${suffix}`;
-}
 
 function speak(text: string) {
   if (!isAudioEnabled.value || !('speechSynthesis' in window)) return
@@ -164,6 +154,24 @@ function speak(text: string) {
   utterance.volume = 1.0
   
   window.speechSynthesis.speak(utterance)
+}
+
+async function installPWA() {
+  if (isIOS.value) {
+    // For iOS, we handle it in UI (showing instructions)
+    return
+  }
+  if (!deferredPrompt.value) return
+  deferredPrompt.value.prompt()
+  const { outcome } = await deferredPrompt.value.userChoice
+  if (outcome === 'accepted') {
+    deferredPrompt.value = null
+    isAppInstallable.value = false
+  }
+}
+
+function dismissPWA() {
+  showPWAInstallPrompt.value = false
 }
 
 function notifyBrowser(title: string, body: string) {
@@ -199,27 +207,17 @@ const currentSpiritualQuote = computed(() => {
 
 const queueProgress = computed(() => {
   if (myTicket.value === null || myTicket.value === 0) return 0
-  
-  // Logic Fix: If it's your turn (active), 100%
   if (isMyTurnActive.value) return 100
   
-  const ahead = peopleAheadCount.value
-  
-  // HYBRID LOGIC: Fixed satisfying percentages for the "Final 5"
-  // 1st (0 ahead) -> 95%
-  // 2nd (1 ahead) -> 75% (Middle-ish as requested)
-  // 3rd (2 ahead) -> 55%
-  // 4th (3 ahead) -> 35%
-  // 5th (4 ahead) -> 20%
-  if (ahead < 5) {
-     const fixedMap = [95, 75, 55, 35, 20]
-     return fixedMap[ahead]
-  }
-
-  // Relative logic for larger numbers
+  // المنطق الجديد: "التقدم التحفيزي" 
+  // نبدأ بنسبة بسيطة (إضافة 1) لضمان أن العميل يرى تقدماً فور انضمامه
   const initial = initialPeopleAhead.value || 1
-  const completed = Math.max(0, initial - ahead)
-  return Math.min(15, 5 + (completed / initial) * 10) // Small movement for early stages
+  const currentAhead = peopleAheadCount.value
+  
+  // المعادلة تضمن بدء الشريط بنسبة (1 / المجموع الحقيقي) لتعزيز شعور العميل بالحركة
+  const progress = ((initial - currentAhead + 0.5) / (initial + 1)) * 100
+  
+  return Math.min(100, Math.max(10, progress))
 })
 
 const isMyTurnActive = computed(() => {
@@ -228,6 +226,52 @@ const isMyTurnActive = computed(() => {
 })
 
 const estimatedWaitTime = computed(() => (peopleAheadCount.value + 1) * 2)
+
+// الميزة 6: رسائل الترقب الذكية
+const queueStatusMessage = computed(() => {
+  if (locale.value === 'ar') {
+    if (peopleAheadCount.value === 0) return 'أنت التالي في الخدمة، استعد..'
+    if (peopleAheadCount.value === 1) return 'استعد، أنت التالي مباشرة!'
+    if (peopleAheadCount.value === 2) return 'لحظات ويحين دوركم..'
+    return 'سعداء بانتظاركم، دوركم يقترب..'
+  } else {
+    if (peopleAheadCount.value === 0) return "You are next, please get ready"
+    if (peopleAheadCount.value === 1) return "Get ready, you're next!"
+    if (peopleAheadCount.value === 2) return "Almost there, hold on.."
+    return "Your turn is approaching soon.."
+  }
+})
+
+// تحسين اللغة العربية (Pluralization & Ordinals)
+const ordinalRank = computed(() => {
+  const n = peopleAheadCount.value + 1
+  if (locale.value !== 'ar') return n
+  
+  const ordinals: Record<number, string> = {
+    1: 'الأول',
+    2: 'الثاني',
+    3: 'الثالث',
+    4: 'الرابع',
+    5: 'الخامس',
+    6: 'السادس',
+    7: 'السابع',
+    8: 'الثامن',
+    9: 'التاسع',
+    10: 'العاشر'
+  }
+  return ordinals[n] || n
+})
+
+const waitTimeLabel = computed(() => {
+  const mins = estimatedWaitTime.value
+  if (locale.value !== 'ar') return t('mins')
+  
+  if (mins === 1) return 'دقيقة واحدة'
+  if (mins === 2) return 'دقيقتان'
+  if (mins >= 3 && mins <= 10) return 'دقائق'
+  return 'دقيقة'
+})
+
 const totalServedToday = ref(0)
 const totalBookingsToday = ref(0)
 
@@ -286,8 +330,28 @@ onMounted(async () => {
   await loadInitialData()
   isLoadingInitial.value = false
   
+  onMounted(() => {
+    // Check if iOS
+    isIOS.value = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault()
+      deferredPrompt.value = e
+      isAppInstallable.value = true
+    })
+
+    window.addEventListener('appinstalled', () => {
+      isAppInstallable.value = false
+      deferredPrompt.value = null
+    })
+  })
+
   // Realtime Channel
   const channel = supabase.channel('home-realtime-sync')
+  
+  onUnmounted(() => {
+    supabase.removeChannel(channel)
+  })
   
   channel
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'queues' }, (payload) => {
@@ -367,26 +431,30 @@ onMounted(async () => {
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (payload) => {
       const updatedTicket = payload.new as any
-      if (queueId.value && updatedTicket.queue_id == queueId.value && updatedTicket.status === 'called') {
-        totalServedToday.value++
+      if (queueId.value && updatedTicket.queue_id == queueId.value) {
         
-        // CHECK IF IT WAS MY TICKET
-        if (myTicket.value && updatedTicket.ticket_number === myTicket.value) {
-           // Calculate Duration
-           const end = Date.now()
-           const start = serviceStartTime.value || (end - 1000 * 60 * 5) // Fallback 5 mins if missed start
-           const diff = end - start
-           
-           const mins = Math.floor(diff / 60000)
-           const secs = Math.floor((diff % 60000) / 1000)
-           serviceDuration.value = `${mins}m ${secs}s`
-           
-           isServiceFinished.value = true
-           
-           // Cleanup local state for next time (but keep finished view open)
-           myTicket.value = null
-           serviceStartTime.value = null
-           // We do NOT set cancelled true, so next scan works nicely
+        // IF MY TICKET status changes to 'called' (terminal status)
+        // Use loose equality (==) to handle string/number comparison safely
+        if (myTicket.value && updatedTicket.ticket_number == myTicket.value && updatedTicket.status === 'called') {
+              const end = Date.now()
+              const start = serviceStartTime.value || (end - 120000)
+              const diff = end - start
+              
+              const mins = Math.floor(diff / 60000)
+              const secs = Math.floor((diff % 60000) / 1000)
+              
+              const pad = (n: number) => n.toString().padStart(2, '0')
+              serviceDuration.value = `${pad(mins)}:${pad(secs)}`
+              
+              isServiceFinished.value = true
+              // Important: We reset myTicket here to conclude the session
+              myTicket.value = null
+              serviceStartTime.value = null
+        }
+        
+        // GLOBAL UPDATE: Increment total served for stats
+        if (updatedTicket.status === 'called') {
+           totalServedToday.value++
         }
       }
     })
@@ -405,7 +473,16 @@ onMounted(async () => {
   isFreshScan.value = false
 })
 
-// Watch for Turn Active -> Start Timer
+const resetCurrentState = () => {
+  myTicket.value = null
+  isServiceFinished.value = false
+  // Delay clearing duration so the card doesn't blank out during fade-out
+  setTimeout(() => {
+    serviceDuration.value = null
+    serviceStartTime.value = null
+  }, 500)
+}
+
 // Watch for Turn Active -> Start Timer
 watch(isMyTurnActive, (isActive) => {
   if (isActive && !serviceStartTime.value) {
@@ -437,47 +514,51 @@ watch(totalServedToday, () => {
     </div>
     
     <!-- Background Texture Overlay (Grain & Noise) -->
-    <div class="fixed inset-0 pointer-events-none z-[1] opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
-    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.01] bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px]"></div>
+    <div class="fixed inset-0 pointer-events-none z-[1] opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')] transition-opacity duration-1000"></div>
+    <div class="fixed inset-0 pointer-events-none z-0 opacity-[0.01] bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px] transition-opacity duration-1000"></div>
     
+    <!-- الميزة 5: الخلفية الحركية (Dynamic Aura Blooms) -->
+    <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-slate-50/50">
+      <div class="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] bg-emerald-100/40 rounded-full blur-[120px] animate-morph-aura"></div>
+      <div class="absolute -bottom-[20%] -right-[10%] w-[70%] h-[70%] bg-emerald-200/20 rounded-full blur-[120px] animate-morph-aura-delayed"></div>
+    </div>
     <!-- Premium Accents (Glows) -->
     <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
       <div class="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-200/20 rounded-full blur-[120px] animate-float-slow transform-gpu"></div>
       <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-teal-200/15 rounded-full blur-[120px] animate-float-reverse transform-gpu"></div>
     </div>
 
-    <!-- Header Brand Pill -->
-    <header class="w-full relative z-30 px-6 pt-10 pb-3 flex items-center justify-between gap-3 max-w-md mx-auto">
-      <div class="flex-shrink min-w-0 inline-flex items-center bg-white/60 backdrop-blur-3xl rounded-2xl px-5 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-white/50 relative overflow-hidden group/brand">
-        <span class="text-xl font-black tracking-tighter bg-gradient-to-br from-slate-900 via-emerald-800 to-slate-900 bg-clip-text text-transparent animate-shimmer-text bg-[length:200%_auto] relative z-10">Dawrak</span>
-        
-        <!-- Live Bell Indicator -->
-        <div v-if="isAudioEnabled" class="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-emerald-600 rounded-full text-white shadow-xl animate-bounce-gentle scale-75 origin-center z-20">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    <!-- Global Command Center Header: Symmetrical & Sleek -->
+    <header class="relative z-40 w-full px-6 pt-10 flex items-center justify-between max-w-md mx-auto" :class="{ 'opacity-20 pointer-events-none blur-sm': isPaused }">
+      
+      <!-- Identity Pillar (Logo + Status) -->
+      <div class="h-10 bg-white/80 backdrop-blur-md px-3 sm:px-4 rounded-2xl shadow-xl shadow-emerald-500/5 border border-white flex items-center gap-2 sm:gap-3 active:scale-95 transition-all">
+        <span class="text-sm sm:text-base font-black text-slate-900 tracking-tighter">Dawrak</span>
+        <div class="w-[1px] h-3 bg-slate-200"></div>
+        <div v-if="currentNumber > 0" class="flex items-center gap-1.5 sm:gap-2">
+           <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse relative">
+              <div class="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40"></div>
+           </div>
+           <span class="text-xs sm:text-sm font-black text-emerald-600 tabular-nums">#{{ currentNumber }}</span>
         </div>
       </div>
 
-      <!-- Actions Group -->
-      <div class="flex items-center gap-2 flex-shrink-0">
-        <!-- Help Button (Emerald Glow & Wiggle) -->
+      <!-- Controls Pillar (Language + Help) -->
+      <div class="flex items-center gap-2 h-10">
+        <!-- Help -->
         <button 
           @click="showHelpGuide = true"
-          class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-100 flex items-center justify-center text-emerald-500 transition-all shadow-lg shadow-emerald-500/10 active:scale-95 hover:animate-wiggle group relative overflow-hidden"
+          class="h-full w-10 bg-white/80 backdrop-blur-md rounded-2xl border border-white flex items-center justify-center text-emerald-500 shadow-xl shadow-emerald-500/5 active:scale-90 group transition-all"
         >
-          <div class="absolute inset-0 bg-emerald-500/5 animate-pulse"></div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="relative z-10 transition-transform group-hover:scale-110"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="transition-transform group-hover:rotate-12"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </button>
 
-        <!-- Language Toggle (Shortcut EN/ع) -->
+        <!-- Language Pillar (Glass) -->
         <button 
-          @click="toggleLanguage"
-          class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-100 flex items-center justify-center text-[0.85rem] font-black text-slate-800 active:scale-95 transition-all shadow-lg shadow-black/5 hover:animate-wiggle group overflow-hidden relative"
-          :title="locale === 'en' ? 'Switch to Arabic' : 'Switch to English'"
+          @click="locale = locale === 'ar' ? 'en' : 'ar'"
+          class="h-full px-4 bg-white/80 backdrop-blur-md rounded-2xl border border-white flex items-center justify-center text-[0.65rem] font-black text-slate-800 shadow-xl shadow-emerald-500/5 active:scale-90 transition-all uppercase tracking-widest"
         >
-          <div class="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <span class="relative z-10 transition-transform duration-500 group-hover:scale-110" :class="locale === 'en' ? 'text-lg pt-0.5' : 'text-[0.75rem]'">
-            {{ locale === 'en' ? 'ع' : 'EN' }}
-          </span>
+          {{ locale === 'ar' ? 'EN' : 'عربي' }}
         </button>
       </div>
     </header>
@@ -540,56 +621,95 @@ watch(totalServedToday, () => {
 
               <button 
                 @click="issueTicket"
-                class="w-full h-20 bg-[#1e293b] text-white rounded-[2rem] font-bold text-xl flex items-center justify-center gap-4 shadow-[0_24px_48px_rgba(30,41,59,0.25)] hover:bg-slate-800 hover:scale-[1.02] hover:shadow-[0_30px_60px_rgba(30,41,59,0.3)] active:scale-[0.97] transition-all duration-500 overflow-hidden relative group/btn"
+                class="w-full h-18 sm:h-20 bg-[#1e293b] text-white rounded-[2.2rem] font-bold text-lg sm:text-xl flex items-center justify-center gap-4 shadow-[0_20px_40px_rgba(0,0,0,0.15)] hover:shadow-[0_25px_50px_rgba(0,0,0,0.2)] active:scale-[0.96] transition-all duration-500 overflow-hidden relative group/btn border border-white/5"
               >
-                <!-- Premium Button Shimmer -->
-                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] skew-x-12 group-hover/btn:animate-shimmer-btn"></div>
+                <!-- Inner Glow Effect -->
+                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
                 
-                <span class="relative z-10">{{ t('get_ticket') }}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="relative z-10 transition-transform duration-500 group-hover/btn:translate-x-1" :class="locale === 'ar' ? 'rotate-180' : ''">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
+                <!-- Premium Dynamic Shimmer -->
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent -translate-x-[100%] skew-x-[35deg] group-hover/btn:animate-[shine_1.5s_infinite] transition-transform"></div>
+                
+                <span class="relative z-10 tracking-tight">{{ t('get_ticket') }}</span>
+                
+                <!-- Animated Icon Circle -->
+                <div class="relative z-10 w-9 h-9 sm:w-10 sm:h-10 bg-white/10 rounded-full flex items-center justify-center group-hover/btn:bg-white/20 transition-colors duration-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="transition-transform duration-500 group-hover/btn:translate-x-0.5" :class="locale === 'ar' ? 'rotate-180' : ''">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </div>
+
+                <!-- Subtle Pulse Decoration (Mobile optimized) -->
+                <div class="absolute inset-0 rounded-[2.2rem] group-hover/btn:ring-4 ring-white/5 transition-all duration-700"></div>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- STATE 2: SERVICE FINISHED (GORGEOUS REVEAL) -->
-        <div v-else-if="isServiceFinished" class="w-full h-full flex items-center justify-center p-4">
-            <div class="bg-white rounded-[3rem] px-8 py-8 sm:p-10 shadow-[0_30px_100px_-20px_rgba(16,185,129,0.15)] border border-slate-100 flex flex-col items-center text-center max-w-[340px] w-full relative overflow-hidden animate-scale-in">
+        <!-- STATE 2: SERVICE FINISHED (ULTIMATUM SUCCESS CARD) -->
+        <div v-else-if="isServiceFinished" class="w-full flex-1 flex items-center justify-center p-4">
+             <div 
+               class="relative w-full max-w-[340px] max-h-[85vh] overflow-y-auto bg-white rounded-[3.5rem] p-7 sm:p-10 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border border-slate-100 flex flex-col items-center animate-card-reveal overflow-x-hidden"
+             >
+                <!-- Decorative Border Accent -->
+                <div class="absolute inset-[8px] rounded-[3rem] border border-emerald-500/5 pointer-events-none"></div>
                 
-                <div class="absolute inset-0 bg-gradient-to-br from-emerald-50/40 via-white to-transparent"></div>
+                <!-- Success Shimmer Overlay -->
+                <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-emerald-400/5 to-transparent -translate-x-full animate-shine-slow pointer-events-none"></div>
+
+                <!-- Floating Sparkles (Interior Decorations) -->
+                <div class="absolute inset-0 pointer-events-none">
+                   <div class="absolute top-10 left-10 w-2 h-2 bg-emerald-400/20 rounded-full animate-sparkle"></div>
+                   <div class="absolute bottom-20 right-10 w-3 h-3 bg-emerald-500/10 rounded-full animate-sparkle" style="animation-delay: 1s;"></div>
+                   <div class="absolute top-1/2 left-4 w-1.5 h-1.5 bg-teal-400/20 rounded-full animate-sparkle" style="animation-delay: 2s;"></div>
+                </div>
+
+                <!-- Animated Success Signature -->
+                <div class="relative mb-8 sm:mb-10">
+                   <div class="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full scale-150 animate-pulse"></div>
+                   <div class="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500 rounded-[1.8rem] sm:rounded-[2.2rem] flex items-center justify-center shadow-2xl shadow-emerald-500/40 relative z-10">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="animate-icon-bounce-success"><path d="M20 6L9 17l-5-5"/></svg>
+                   </div>
+                </div>
                 
-                <div class="relative z-10 flex flex-col items-center w-full">
-                   <!-- Premium Success Icon -->
-                   <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-2xl shadow-emerald-500/10 border border-emerald-50 mb-5 group relative transition-transform duration-700 hover:scale-110">
-                      <div class="absolute inset-0 rounded-full bg-emerald-500/5 animate-ping opacity-50"></div>
-                      <div class="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-xl shadow-emerald-500/30">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="animate-draw-circle"><polyline points="20 6 9 17 4 12"/></svg>
+                <div class="text-center mb-8 sm:mb-10 space-y-1 relative z-10">
+                   <h2 class="text-2xl sm:text-[1.75rem] font-black text-slate-900 tracking-tighter leading-none">{{ t('thank_you') }}</h2>
+                   <p class="text-slate-400 font-bold text-xs sm:text-sm tracking-tight px-4">{{ t('hope_served_well') }}</p>
+                </div>
+                
+                <!-- Luxury Duration Display -->
+                <div 
+                  v-if="serviceDuration"
+                  class="w-full bg-slate-50/80 rounded-[2.5rem] p-6 sm:p-8 border border-slate-100 flex flex-col items-center gap-3 sm:gap-4 mb-8 sm:mb-10 group hover:bg-white hover:shadow-xl transition-all duration-700 relative z-10"
+                >
+                   <span class="text-[0.55rem] sm:text-[0.6rem] font-black text-slate-400 uppercase tracking-[0.4em]">{{ t('service_duration') }}</span>
+                   
+                   <div class="flex items-center justify-center gap-4 sm:gap-6">
+                      <div class="flex flex-col items-center">
+                         <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums font-mono tracking-tight">{{ serviceDuration.split(':')[0] }}</span>
+                         <span class="text-[0.45rem] sm:text-[0.5rem] font-black text-slate-300 uppercase tracking-widest mt-1">{{ locale === 'ar' ? 'دقيقة' : 'MIN' }}</span>
+                      </div>
+                      <div class="text-xl sm:text-2xl font-black text-emerald-500/30 animate-pulse mb-4 sm:mb-6">:</div>
+                      <div class="flex flex-col items-center">
+                         <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums font-mono tracking-tight">{{ serviceDuration.split(':')[1] }}</span>
+                         <span class="text-[0.45rem] sm:text-[0.5rem] font-black text-slate-300 uppercase tracking-widest mt-1">{{ locale === 'ar' ? 'ثانية' : 'SEC' }}</span>
                       </div>
                    </div>
                    
-                   <h2 class="text-3xl font-black text-slate-900 mb-2 tracking-tighter leading-none">{{ t('thank_you') }}</h2>
-                   <p class="text-slate-900 font-bold mb-6 text-base opacity-95 leading-tight px-2">{{ t('see_you_again') }}</p>
+                   <div class="w-full h-px bg-slate-100 mt-1"></div>
                    
-                   <!-- Service Stats Pill -->
-                   <div class="flex flex-col items-center gap-1.5 bg-slate-900/5 backdrop-blur-sm px-6 py-3 rounded-[1.5rem] border border-white shadow-sm mb-8 w-full">
-                       <span class="text-[0.6rem] font-black text-slate-800 uppercase tracking-[0.2em]">{{ t('elapsed_time') }}</span>
-                       <div class="flex items-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                          <span class="text-xl font-black text-slate-800 tabular-nums">{{ serviceDuration }}</span>
-                       </div>
-                   </div>
-
-                   <button 
-                     @click="isServiceFinished = false;" 
-                     class="w-full h-18 bg-slate-900 text-white rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-slate-900/40 active:scale-95 transition-all relative overflow-hidden group/btn"
-                   >
-                      <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] skew-x-12 group-hover/btn:animate-shine transition-all duration-1000"></div>
-                      <span class="relative z-10">{{ t('done') }}</span>
-                   </button>
+                   <p class="text-[0.6rem] sm:text-[0.65rem] font-bold text-slate-400 italic px-2 text-center">
+                      "{{ t('welcome_back_message') }}"
+                   </p>
                 </div>
-            </div>
+
+                <button 
+                  @click="resetCurrentState()" 
+                  class="w-full h-16 sm:h-18 bg-slate-900 text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-[0.3em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all relative group/btn z-10"
+                >
+                   <span class="relative z-10">{{ locale === 'ar' ? 'اكتمل بنجاح' : 'DONE' }}</span>
+                   <div class="absolute inset-0 bg-white/10 opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
+                </button>
+             </div>
         </div>
 
         <!-- STATE 3: QUEUE & REVEAL (KEEP THE CIRCLE) -->
@@ -623,161 +743,212 @@ watch(totalServedToday, () => {
             <!-- REVEAL ANIMATION (3D FLIP CARD) -->
             <div v-if="isIssuing" class="flex flex-col items-center justify-center w-full h-full relative z-20 perspective-1000">
                <div 
-                 class="relative w-48 aspect-[3/4] preserve-3d transition-all duration-[400ms] ease-out will-change-transform"
+                 class="relative w-52 aspect-[4/5] preserve-3d transition-all duration-1000 ease-out will-change-transform"
                  :class="{ 
-                   'rotate-y-180 scale-105 shadow-emerald-200/50': issuanceStage === 'flipping' || issuanceStage === 'revealed',
-                   'scale-95': issuanceStage === 'fetching'
+                   'rotate-y-180': issuanceStage === 'flipping' || issuanceStage === 'revealed'
                  }"
                >
-                  <!-- FRONT: LOADING STATE -->
-                   <div class="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-2xl border border-emerald-100/50 flex flex-col items-center justify-center overflow-hidden">
-                     <div class="absolute inset-0 bg-gradient-to-br from-white to-slate-50"></div>
-                     <div class="relative z-10 flex flex-col items-center gap-6">
+                  <!-- FRONT: THE CARD BACK (Logo Design / Fetching) -->
+                  <div class="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col items-center justify-center p-8 overflow-hidden">
+                     <div class="absolute inset-0 bg-gradient-to-br from-white via-emerald-50/20 to-slate-50"></div>
+                     
+                     <!-- Loading Spinner if fetching -->
+                     <div v-if="issuanceStage === 'fetching'" class="relative z-10 flex flex-col items-center gap-6">
                         <div class="relative">
-                          <div class="w-12 h-12 rounded-full border-4 border-slate-100 border-t-emerald-500 animate-spin"></div>
-                          <div class="absolute inset-0 flex items-center justify-center">
-                             <div class="w-6 h-6 bg-emerald-50 rounded-full animate-pulse"></div>
-                          </div>
+                           <div class="w-12 h-12 rounded-full border-4 border-slate-100 border-t-emerald-500 animate-spin"></div>
+                           <div class="absolute inset-0 flex items-center justify-center">
+                              <div class="w-6 h-6 bg-emerald-50 rounded-full animate-pulse"></div>
+                           </div>
                         </div>
-                        <div class="text-center space-y-2">
-                           <p class="text-[0.6rem] font-black text-slate-800 uppercase tracking-[0.2em]">{{ t('queue_service') }}</p>
-                           <p class="text-[0.5rem] font-bold text-slate-400 uppercase tracking-[0.2em] animate-pulse">{{ t('materializing') }}</p>
+                        <p class="text-[0.6rem] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">{{ t('queue_service') }}</p>
+                     </div>
+
+                     <!-- Static Back for Flip start -->
+                     <div v-else class="relative z-10 flex flex-col items-center">
+                        <div class="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-emerald-500/20 mb-6">
+                           <span class="text-white text-3xl font-black italic">D</span>
                         </div>
+                        <div class="text-slate-300 font-black tracking-[0.5em] uppercase text-xs mb-2">Dawrak</div>
+                        <div class="w-8 h-[2px] bg-emerald-200 rounded-full"></div>
                      </div>
                   </div>
 
-                  <!-- BACK: TICKET REVEALED -->
-                  <div class="absolute inset-0 backface-hidden rotate-y-180 bg-white rounded-3xl shadow-2xl border-2 border-emerald-500/20 overflow-hidden flex flex-col">
-                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-50/80 to-white"></div>
-                     <div class="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/80 to-transparent skew-x-12 animate-shine pointer-events-none"></div>
+                  <!-- BACK: THE TICKET REVEALED -->
+                  <div class="absolute inset-0 backface-hidden rotate-y-180 bg-white rounded-3xl shadow-2xl border-2 border-emerald-500/10 overflow-hidden flex flex-col">
+                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-50/50 via-white to-white"></div>
                      <div class="absolute top-0 left-0 w-full h-2 bg-emerald-500 shadow-[0_2px_10px_rgba(16,185,129,0.3)]"></div>
                      
                      <div class="relative flex-1 flex flex-col items-center justify-center p-6 text-center">
-                        <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-200 mb-6 animate-bounce-gentle">
-                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg>
+                        <div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-6">
+                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="4"><path d="M20 6L9 17l-5-5"></path></svg>
                         </div>
 
-                        <span class="text-[0.7rem] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{{ t('your_number') }}</span>
-                        <div class="text-[6rem] leading-none font-black text-slate-900 tabular-nums tracking-tighter mb-4 drop-shadow-sm">{{ String(projectedTicket).padStart(3, '0') }}</div>
-                        <span class="text-[0.65rem] font-bold text-emerald-700 uppercase tracking-[0.1em] bg-emerald-100 px-4 py-1.5 rounded-full shadow-sm">{{ t('digital_pass') }}</span>
+                        <span class="text-[0.65rem] font-black text-slate-300 uppercase tracking-[0.3em] mb-2">{{ t('your_number') }}</span>
+                        <div class="text-[5.5rem] leading-none font-black text-slate-900 tabular-nums tracking-tighter mb-4">{{ String(projectedTicket).padStart(3, '0') }}</div>
+                        <div class="px-4 py-1.5 bg-emerald-50 text-emerald-700 text-[0.6rem] font-bold uppercase tracking-widest rounded-full border border-emerald-100/50">
+                           {{ t('digital_pass') }}
+                        </div>
                      </div>
                   </div>
                </div>
             </div>
 
+            <!-- حالة الانتظار: المجسم الموحد (Unity Unit) -->
             <div 
               v-else-if="myTicket !== null && !isMyTurnActive" 
-              class="flex flex-col items-center w-full h-full justify-center relative z-10 animate-scale-in transition-all duration-1000"
+              class="flex flex-col items-center w-full h-full justify-center relative z-10 animate-scale-in"
             >
-
-               <div class="absolute inset-0 flex items-center justify-center pointer-events-none p-1 sm:p-2">
-                  <svg class="w-full h-full -rotate-90 transform transition-all duration-1000 group/progress" viewBox="0 0 100 100">
-                    <!-- Background Ring: Ultra-Soft Emerald Hint -->
-                    <circle cx="50" cy="50" r="46.5" fill="none" class="stroke-emerald-100/30" stroke-width="4.5"></circle>
+               <!-- شريط التقدم والمسار الأخضر الفاتح (Liquid Road) -->
+               <div class="absolute inset-[-6px] flex items-center justify-center pointer-events-none">
+                  <svg class="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+                    <!-- مسار الطريق (The Path) -->
+                    <circle cx="50" cy="50" r="46.5" fill="none" class="stroke-emerald-500/10" stroke-width="6.5"></circle>
                     
-                    <!-- Glow Layer -->
+                    <!-- السائل الأخضر المتوهج (Base Progress) -->
                     <circle 
                       cx="50" cy="50" r="46.5" 
                       fill="none" 
-                      stroke-width="7" 
+                      stroke-width="6.5" 
                       stroke-linecap="round"
-                      stroke-dasharray="292.5" 
-                      :stroke-dashoffset="292.5 - (2.925 * queueProgress)"
-                      class="transition-all duration-1000 ease-out opacity-20 blur-[5px] animate-progress-glow"
-                      :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
+                      stroke-dasharray="292" 
+                      :stroke-dashoffset="292 - (2.92 * queueProgress)"
+                      class="transition-all duration-[1200ms] cubic-bezier(0.34, 1.56, 0.64, 1)"
+                      stroke="url(#progressGradient)"
                     ></circle>
 
-                    <!-- Main Progress Circle -->
+                    <!-- الميزة 1: الحركة السائلة (Liquid Flow Shimmer) -->
                     <circle 
+                      v-if="queueProgress > 1"
                       cx="50" cy="50" r="46.5" 
                       fill="none" 
-                      stroke-width="5" 
+                      stroke-width="6.5" 
                       stroke-linecap="round"
-                      stroke-dasharray="292.5" 
-                      :stroke-dashoffset="292.5 - (2.925 * queueProgress)"
-                      class="transition-all duration-1000 ease-out animate-progress-glow"
-                      :stroke="isPaused ? '#ef4444' : 'url(#progressGradient)'"
+                      stroke-dasharray="20 272"
+                      :stroke-dashoffset="-(2.92 * queueProgress)"
+                      class="animate-liquid-flow stroke-white/30"
+                      style="filter: blur(2px);"
+                    ></circle>
+
+                    <!-- شرارة التقدم (Leading Spark) -->
+                    <circle 
+                      v-if="queueProgress > 1 && queueProgress < 100"
+                      cx="50" cy="50" r="47" 
+                      fill="none" 
+                      stroke="#fff" 
+                      stroke-width="2.5" 
+                      stroke-linecap="round"
+                      stroke-dasharray="0.5 294.8" 
+                      :stroke-dashoffset="-(2.953 * queueProgress)"
+                      class="transition-all duration-[1200ms] cubic-bezier(0.34, 1.56, 0.64, 1)"
+                      style="filter: drop-shadow(0 0 5px #fff);"
                     ></circle>
                   </svg>
                </div>
 
-                <div class="flex flex-col items-center justify-center w-full h-full relative z-10 transition-transform duration-1000 p-8">
-                  <div class="flex flex-col items-center justify-center w-full h-full space-y-4 pt-10 sm:pt-14">
-                    <!-- Top: Ticket Number Badge (Pushed Down) -->
-                    <div class="inline-flex flex-col items-center">
-                      <span class="text-[0.7rem] sm:text-[0.8rem] font-bold text-slate-500 uppercase tracking-[0.2em]">
-                         {{ t('your_number') }} #{{ String(myTicket).padStart(3, '0') }}
+                <!-- الميزة 5: التأثير الزجاجي العميق (Deep 3D Glass) مع حافة مضيئة -->
+                <div 
+                  class="w-[92%] h-[92%] bg-gradient-to-b from-white/90 to-white/50 backdrop-blur-3xl rounded-full flex flex-col items-center justify-center text-center relative z-10 border-[0.5px] transition-all duration-1000 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1),inset_0_4px_12px_rgba(255,255,255,0.8),inset_0_-8px_20px_rgba(16,185,129,0.05)] overflow-hidden"
+                  :class="[
+                    peopleAheadCount < 3 ? 'border-emerald-500/30 animate-breathing-core' : 'border-white/80'
+                  ]"
+                >
+                  <!-- الميزة 2: لمعان الحافة الزجاجية (Glass Edge Highlight) -->
+                  <div class="absolute inset-0 rounded-full border-[1.5px] border-transparent [mask-image:linear-gradient(to_bottom,black,transparent)] pointer-events-none opacity-40 invisible sm:visible">
+                    <div class="absolute inset-0 rounded-full border-t-[1.5px] border-white"></div>
+                  </div>
+
+                  <div class="relative z-10 flex flex-col items-center justify-center p-8 w-full h-full">
+                    
+                    <!-- رقم التذكرة (Upper Identity) -->
+                    <div class="mb-3">
+                      <span class="text-[0.65rem] sm:text-[0.75rem] font-medium text-emerald-600/40 uppercase tracking-[0.4em] block">
+                        #{{ String(myTicket).padStart(3, '0') }} {{ t('your_number') }}
                       </span>
                     </div>
                     
-                    <!-- Middle: Position Message -->
-                    <div class="flex flex-col items-center justify-center px-2 sm:px-6">
-                      <h2 
-                        class="font-black text-slate-900 tracking-tighter"
-                        :class="locale === 'en' ? 'leading-[0.9]' : 'leading-[1.1]'"
-                        :style="{ 
-                          fontSize: (peopleAheadCount + 1).toString().length > 2 ? 'clamp(1.1rem, 6vw, 1.6rem)' : 'clamp(1.8rem, 10vw, 2.8rem)' 
-                        }"
-                      >
-                        {{ t('you_are_n_in_queue').replace('{n}', locale === 'en' ? getOrdinal(peopleAheadCount + 1) : (peopleAheadCount + 1).toString()) }}
-                      </h2>
-                      <span class="text-[0.75rem] sm:text-[0.85rem] font-black text-emerald-600 uppercase tracking-[0.4em] mt-3 opacity-80">
-                        {{ t('wait_coming') }}
-                      </span>
+                    <!-- الميزة الأولى والثالثة: هرمية النصوص والظلال العميقة -->
+                    <div class="flex flex-col items-center justify-center mb-6 overflow-hidden w-full px-4 text-center">
+                      <Transition name="slide-up" mode="out-in">
+                        <div :key="peopleAheadCount" class="flex flex-col items-center w-full px-2">
+                          <h2 
+                            class="font-extrabold text-slate-900 leading-[1.3] font-display drop-shadow-[0_2px_4px_rgba(0,0,0,0.05)]"
+                            :style="{ 
+                              fontSize: locale === 'en' ? 'clamp(1rem, 6.5vw, 1.7rem)' : 'clamp(1.1rem, 7.8vw, 1.9rem)' 
+                            }"
+                          >
+                            <template v-if="locale === 'ar'">
+                               <span>أنت </span>
+                               <span class="text-emerald-600 drop-shadow-[0_4px_8px_rgba(16,185,129,0.15)]">{{ ordinalRank }}</span>
+                               <span> في القائمة</span>
+                            </template>
+                            <template v-else>
+                               <span>{{ t('you_are_n_in_queue').split('{n}')[0] }}</span>
+                               <span class="text-emerald-600">{{ ordinalRank }}</span>
+                               <span>{{ t('you_are_n_in_queue').split('{n}')[1] }}</span>
+                            </template>
+                          </h2>
+                        </div>
+                      </Transition>
+                      
+                      <!-- الميزة 6: الرسائل التفاعلية الذكية (Micro-copy) -->
+                      <div class="h-8 mt-1 flex items-center justify-center overflow-hidden">
+                        <Transition name="fade-up" mode="out-in">
+                          <span :key="queueStatusMessage" class="text-[0.6rem] sm:text-[0.65rem] font-medium text-slate-500/60 uppercase tracking-[0.1em] px-2 text-center leading-tight">
+                             {{ queueStatusMessage }}
+                          </span>
+                        </Transition>
+                      </div>
                     </div>
 
-                    <!-- Bottom: Wait Time OR Spiritual/Reassurance Message -->
-                    <div class="pt-2 sm:pt-6 transition-all duration-700 max-w-[280px] mx-auto min-h-[120px] flex flex-col items-center justify-center">
-                      <!-- CASE 1: RANK 1 (0 behind) -> ALHAMDULILLAH -->
-                      <template v-if="peopleAheadCount === 0">
-                        <div class="flex flex-col items-center animate-fade-in-up">
-                           <span class="text-3xl sm:text-4xl font-black text-emerald-600 tracking-tight">
-                             {{ t('alhamdulillah') }}
-                           </span>
-                           <div class="h-1 w-12 bg-emerald-500/20 rounded-full mt-4"></div>
-                        </div>
-                      </template>
+                    <!-- Divider Line -->
+                    <div class="w-10 h-[1px] bg-emerald-500/10 mb-6 rounded-full"></div>
 
-                      <!-- CASE 2: RANK 2 OR 3 (1 or 2 ahead) -> SHOW MINUTES -->
+                    <!-- محتوى المعلومات (Spiritual or Info) -->
+                    <div class="w-full flex items-center justify-center min-h-[60px]">
+                      <template v-if="peopleAheadCount === 0">
+                         <span class="text-lg sm:text-xl font-medium text-emerald-600/60 font-amiri italic tracking-tighter">{{ t('alhamdulillah') }}</span>
+                      </template>
                       <template v-else-if="peopleAheadCount < 3">
-                        <p class="text-[0.7rem] sm:text-[0.8rem] font-black text-slate-400 mb-2 uppercase tracking-[0.25em]">{{ t('estimated_wait') }}</p>
-                        <div class="flex items-center justify-center gap-2">
-                          <span class="text-2xl text-slate-300 font-bold">≈</span>
-                          <span class="text-4xl sm:text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{{ estimatedWaitTime }}</span>
-                          <span class="text-sm sm:text-base text-slate-500 font-bold">{{ t('mins') }}</span>
+                        <div class="flex flex-col items-center">
+                           <p class="text-[0.5rem] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">{{ t('estimated_wait') }}</p>
+                           <div class="flex items-center gap-1.5">
+                              <span class="text-lg text-slate-200">≈</span>
+                               <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums tracking-tighter font-display">{{ estimatedWaitTime }}</span>
+                               <span class="text-[0.6rem] text-slate-400 font-bold uppercase tracking-widest">{{ waitTimeLabel }}</span>
+                           </div>
                         </div>
                       </template>
-                      
-                      <!-- CASE 3: RANK 4+ -> SHOW SPIRITUAL QUOTES -->
                       <template v-else>
-                        <div class="flex flex-col items-center space-y-4 animate-fade-in px-4">
-                           <div class="w-8 h-[1.5px] bg-emerald-500/10 rounded-full"></div>
-                           <p class="text-[0.9rem] sm:text-[1.1rem] font-bold text-slate-700/80 leading-snug text-center italic font-serif">
-                             "{{ currentSpiritualQuote }}"
-                           </p>
-                           <div class="w-8 h-[1.5px] bg-emerald-500/20 rounded-full"></div>
-                        </div>
+                         <div class="px-6 py-2 rounded-[2.5rem] active:scale-[0.98] transition-all group relative cursor-pointer max-w-[280px] w-full mx-auto text-center">
+                            <p class="text-[0.9rem] sm:text-[1rem] font-medium leading-[1.6] text-slate-700/80 font-amiri italic relative z-10 drop-shadow-sm">
+                               "{{ currentSpiritualQuote }}"
+                            </p>
+                            <!-- Subtle Living Divider -->
+                            <div class="w-10 h-[2px] bg-emerald-500/10 mx-auto mt-2 rounded-full animate-pulse"></div>
+                         </div>
                       </template>
                     </div>
                   </div>
                 </div>
-            </div>
+              </div>
 
-            <!-- SUCCESS (Serving) -->
+             <!-- SUCCESS (Serving) - Hyper Polish -->
             <div v-else-if="isMyTurnActive" class="flex flex-col items-center justify-center w-full h-full relative z-30 animate-scale-in">
+               <div class="absolute inset-[-20%] bg-emerald-500/5 rounded-full blur-[100px] animate-pulse"></div>
                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <svg class="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="47.5" fill="none" stroke="url(#progressGradient)" stroke-width="4.5" stroke-linecap="round" class="animate-draw-circle opacity-20 blur-[3px]"></circle>
-                    <circle cx="50" cy="50" r="47.5" fill="none" stroke="url(#progressGradient)" stroke-width="4" stroke-linecap="round" class="animate-draw-circle"></circle>
+                    <circle cx="50" cy="50" r="47.5" fill="none" stroke="url(#progressGradient)" stroke-width="5" stroke-linecap="round" class="animate-draw-circle opacity-20 blur-[5px]"></circle>
+                    <circle cx="50" cy="50" r="47.5" fill="none" stroke="url(#progressGradient)" stroke-width="4.5" stroke-linecap="round" class="animate-draw-circle transition-all duration-1000"></circle>
                   </svg>
                </div>
-               <div class="flex flex-col items-center gap-4 animate-bounce-gentle px-8">
-                  <div class="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/20">
-                     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+               <div class="flex flex-col items-center gap-6 animate-bounce-gentle px-8 relative z-10">
+                  <div class="w-24 h-24 rounded-[2.5rem] bg-emerald-500 flex items-center justify-center shadow-2xl shadow-emerald-500/40 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-white/10"></div>
+                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="relative z-10 animate-icon-bounce-success"><path d="M20 6L9 17l-5-5"/></svg>
                   </div>
                   <div class="text-center">
-                    <h2 class="text-3xl font-black text-slate-900 tracking-tight leading-tight">{{ t('its_your_turn') }}</h2>
-                    <p class="text-base font-bold text-slate-500 mt-2 uppercase tracking-tight">{{ t('proceed_to_counter') }}</p>
+                    <h2 class="text-4xl font-black text-slate-900 tracking-tight leading-tight drop-shadow-md">{{ t('its_your_turn') }}</h2>
+                    <p class="text-lg font-bold text-emerald-600 mt-2 uppercase tracking-wide opacity-90">{{ t('proceed_to_counter') }}</p>
                   </div>
                </div>
             </div>
@@ -806,18 +977,20 @@ watch(totalServedToday, () => {
             <!-- Animated Shine Effect (Only if not enabled) -->
             <div v-if="!isAudioEnabled" class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-[150%] skew-x-12 animate-shine pointer-events-none"></div>
             
-            <svg width="24" height="24" viewBox="0 0 24 24" :fill="isAudioEnabled ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2.5" class="relative z-10">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <span class="relative z-10 tracking-wide">
-              {{ isAudioEnabled ? t('audio_enabled') : t('enable_notifications') }}
-            </span>
+             <svg width="24" height="24" viewBox="0 0 24 24" :fill="isAudioEnabled ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2.5" class="relative z-10">
+               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+             </svg>
+             <span class="relative z-10 tracking-wide">
+               {{ isAudioEnabled ? t('audio_enabled') : t('enable_notifications') }}
+             </span>
+             <!-- Animated Shine Sweep -->
+             <div v-if="!isAudioEnabled" class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] skew-x-12 animate-shimmer-btn"></div>
           </button>
           
-          <!-- Leave Button: Elegant Glassmorphic Pill -->
-          <button @click="showCancelConfirmation = true" class="w-full h-18 bg-white/60 backdrop-blur-xl text-slate-500 hover:bg-rose-50/80 hover:text-rose-600 rounded-full font-bold text-[0.9rem] uppercase tracking-[0.2em] active:scale-[0.98] transition-all flex items-center justify-center border border-white/80 shadow-lg shadow-black/5 gap-2 group">
-            <span class="opacity-70 group-hover:opacity-100 transition-opacity">{{ t('leave_queue') }}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-40 group-hover:opacity-100 transition-opacity"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <!-- Leave Button: Elegant Low-Priority Pill -->
+          <button @click="showCancelConfirmation = true" class="w-full h-18 bg-white/40 backdrop-blur-xl text-slate-400 hover:bg-rose-50/50 hover:text-rose-500 rounded-full font-bold text-[0.85rem] uppercase tracking-[0.2em] active:scale-[0.98] transition-all flex items-center justify-center border border-white/50 shadow-sm gap-2 group">
+             <span class="opacity-80 group-hover:opacity-100 transition-opacity">{{ t('leave_queue') }}</span>
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-30 group-hover:opacity-100 transition-opacity"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           </button>
         </div>
       </Transition>
@@ -904,6 +1077,44 @@ watch(totalServedToday, () => {
         </div>
       </div>
     </div>
+    <!-- PWA Installation Prompt (The "Upgrade" Banner) -->
+    <Transition name="fade-up">
+      <div v-if="(isAppInstallable || isIOS) && showPWAInstallPrompt" class="fixed bottom-10 left-6 right-6 z-[80] flex justify-center pointer-events-none">
+        <div class="bg-white/90 backdrop-blur-2xl px-6 py-6 rounded-[2.5rem] border border-white shadow-[0_40px_80px_-20px_rgba(0,0,0,0.15)] max-w-sm w-full pointer-events-auto flex flex-col gap-5 relative overflow-hidden group">
+          
+          <!-- Animated Background Accent -->
+          <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-1000"></div>
+
+          <div class="flex items-start gap-4 h-full">
+            <div class="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-500/30 flex-shrink-0 animate-bounce-gentle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+            </div>
+            <div class="flex flex-col gap-1">
+              <h3 class="font-black text-slate-900 tracking-tight text-lg">{{ isIOS ? t('pwa_install_ios') : t('pwa_install') }}</h3>
+              <p class="text-xs font-bold text-slate-400 leading-relaxed pr-2">
+                {{ isIOS ? t('pwa_install_ios_desc') : t('pwa_install_desc') }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button 
+              @click="isIOS ? dismissPWA() : installPWA()" 
+              class="flex-1 h-14 bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest relative overflow-hidden group/btn"
+            >
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] skew-x-12 group-hover/btn:animate-shimmer-btn"></div>
+              {{ isIOS ? t('done') : t('pwa_install') }}
+            </button>
+            <button 
+              @click="dismissPWA" 
+              class="px-6 h-14 bg-slate-50 text-slate-400 rounded-2xl font-black text-[0.6rem] uppercase tracking-widest hover:bg-slate-100 transition-colors"
+            >
+              {{ t('pwa_dismiss') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -984,6 +1195,42 @@ watch(totalServedToday, () => {
 .animate-shimmer-text { animation: shimmer-text 5s linear infinite; }
 .hover\:animate-wiggle:hover { animation: wiggle 0.5s ease-in-out both; }
 @keyframes wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+
+@keyframes liquid-flow {
+  0% { stroke-dashoffset: 292; }
+  100% { stroke-dashoffset: -292; }
+}
+
+@keyframes breathing-core {
+  0%, 100% { box-shadow: 0 0 30px rgba(16,185,129,0.1), inset 0 2px 10px rgba(255,255,255,1); transform: scale(1); }
+  50% { box-shadow: 0 0 50px rgba(16,185,129,0.25), inset 0 2px 10px rgba(255,255,255,1); transform: scale(1.01); }
+}
+
+@keyframes magnetic-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 20px 40px rgba(16,185,129,0.3); }
+  50% { transform: scale(1.02); box-shadow: 0 25px 60px rgba(16,185,129,0.4); }
+}
+
+@keyframes morph-aura {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(10%, 10%) scale(1.1); }
+  66% { transform: translate(-5%, 15%) scale(0.9); }
+}
+.animate-morph-aura { animation: morph-aura 20s ease-in-out infinite; }
+.animate-morph-aura-delayed { animation: morph-aura 25s ease-in-out infinite reverse; }
+
+.animate-magnetic-pulse { animation: magnetic-pulse 3s ease-in-out infinite; }
+.animate-liquid-flow { animation: liquid-flow 4s linear infinite; }
+.animate-breathing-core { animation: breathing-core 4s ease-in-out infinite; }
+
+.animate-ticket-3d {
+  animation: ticket-reveal-3d 1s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+/* انتقالات الأرقام الذكية */
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.slide-up-enter-from { opacity: 0; transform: translateY(20px); }
+.slide-up-leave-to { opacity: 0; transform: translateY(-20px); }
 
 .fade-scale-enter-active, .fade-scale-leave-active { transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); will-change: transform, opacity; }
 .fade-scale-enter-from { opacity: 0; transform: scale(0.9); }

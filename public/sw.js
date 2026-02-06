@@ -5,6 +5,7 @@ const ASSETS_TO_CACHE = [
     '/manifest.webmanifest',
     '/vite.svg',
     '/notification.mp3',
+    '/logo.png',
     '/pwa-192x192.png',
     '/pwa-512x512.png'
 ];

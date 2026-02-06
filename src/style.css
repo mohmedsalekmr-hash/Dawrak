@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Almarai:wght@300;400;700;800&family=IBM+Plex+Sans+Arabic:wght@100;200;300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -6,7 +7,8 @@
   --color-queue-green: #22C55E;
   --color-pure-white: #ffffff;
 
-  --font-sans: 'IBM Plex Sans Arabic', 'Poppins', sans-serif;
+  --font-sans: 'IBM Plex Sans Arabic', 'Cairo', 'Almarai', 'Poppins', sans-serif;
+  --font-display: 'Cairo', 'Almarai', 'IBM Plex Sans Arabic', sans-serif;
 
   --animate-float: float 6s ease-in-out infinite;
   --animate-shine: shine 3s infinite;
@@ -72,9 +74,109 @@
   }
 }
 
-.animate-pop-up {
-  animation: pop-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  will-change: transform, opacity;
+@keyframes card-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(40px) rotateX(-10deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotateX(0);
+  }
+}
+
+@keyframes shine-slow {
+  0% {
+    transform: translateX(-150%) skewX(-30deg);
+  }
+
+  50% {
+    transform: translateX(150%) skewX(-30deg);
+  }
+
+  100% {
+    transform: translateX(150%) skewX(-30deg);
+  }
+}
+
+@keyframes icon-bounce-success {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes floating-sparkle {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.2;
+  }
+
+  50% {
+    transform: translate3d(10px, -10px, 0) scale(1.2);
+    opacity: 0.6;
+  }
+}
+
+.animate-card-reveal {
+  animation: card-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shine-slow {
+  animation: shine-slow 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-icon-bounce-success {
+  animation: icon-bounce-success 2s ease-in-out infinite;
+}
+
+.animate-sparkle {
+  animation: floating-sparkle 4s ease-in-out infinite;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+@keyframes ticket-reveal-3d {
+  0% {
+    transform: scale(0.8) rotateY(-90deg) translateY(50px);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.05) rotateY(15deg) translateY(-10px);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1) rotateY(0deg) translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-ticket-3d {
+  animation: ticket-reveal-3d 1s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
 
 /* App specific aesthetics */
